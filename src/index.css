@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Bengali", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "Amiri", serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f5f5f0;
+}
+
+/* Safe area for mobile PWA */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
