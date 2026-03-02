@@ -1,5 +1,5 @@
 {
   "name": "Islamic App BD",
   "description": "A user-friendly Bengali Islamic app with prayer times, Sehri/Iftar schedule, and Al Quran with Arabic, Bengali translation, and audio.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["geolocation"]
 }

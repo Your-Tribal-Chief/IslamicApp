@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, BookOpen } from 'lucide-react';
+import { Search, BookOpen, History, ChevronRight } from 'lucide-react';
 
 interface Surah {
   number: number;
@@ -15,6 +15,7 @@ export default function Quran() {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastRead, setLastRead] = useState<{ number: number; name: string } | null>(null);
 
   useEffect(() => {
     async function fetchSurahs() {
@@ -29,6 +30,11 @@ export default function Quran() {
       }
     }
     fetchSurahs();
+
+    const saved = localStorage.getItem('lastReadSurah');
+    if (saved) {
+      setLastRead(JSON.parse(saved));
+    }
   }, []);
 
   const convertToBanglaNumber = (numStr: string | number) => {
@@ -42,15 +48,15 @@ export default function Quran() {
   );
 
   return (
-    <div className="flex flex-col min-h-full bg-[#f5f5f0] pb-8">
+    <div className="flex flex-col min-h-full bg-[#f5f5f0] dark:bg-[#0c0c0c] pb-8 transition-colors duration-300">
       {/* Header */}
-      <div className="bg-emerald-800 text-white pt-12 pb-6 px-4 rounded-b-3xl shadow-md relative overflow-hidden">
+      <div className="bg-emerald-800 dark:bg-emerald-950 text-white pt-12 pb-6 px-4 rounded-b-[40px] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
           <BookOpen size={150} className="-mt-10 -mr-10 transform rotate-12" />
         </div>
         <div className="relative z-10">
           <h1 className="text-3xl font-bold font-serif mb-2">আল কুরআন</h1>
-          <p className="text-emerald-100 text-sm opacity-90">পবিত্র কুরআনুল কারীম</p>
+          <p className="text-emerald-100 text-sm opacity-80">পবিত্র কুরআনুল কারীম</p>
           
           <div className="mt-6 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -59,7 +65,7 @@ export default function Quran() {
             <input
               type="text"
               placeholder="সূরা খুঁজুন..."
-              className="block w-full pl-10 pr-3 py-3 border-none rounded-2xl bg-white/20 text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-white/50 backdrop-blur-sm transition-all"
+              className="block w-full pl-10 pr-3 py-3 border-none rounded-2xl bg-white/20 text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-white/50 backdrop-blur-sm transition-all text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -67,11 +73,44 @@ export default function Quran() {
         </div>
       </div>
 
+      {/* Last Read */}
+      {lastRead && !searchQuery && (
+        <div className="px-4 mt-6">
+          <Link 
+            to={`/surah/${lastRead.number}`}
+            className="bg-emerald-900 dark:bg-emerald-950 rounded-[32px] p-6 shadow-xl shadow-emerald-900/20 text-white flex items-center justify-between relative overflow-hidden group border border-emerald-800 dark:border-emerald-900"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+              <History size={100} />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center space-x-2 text-emerald-300 text-[10px] font-bold uppercase tracking-widest mb-2">
+                <History size={12} />
+                <span>সর্বশেষ পঠিত</span>
+              </div>
+              <h3 className="text-2xl font-bold font-serif">{lastRead.name}</h3>
+              <p className="text-emerald-100/60 text-xs mt-1">পড়া চালিয়ে যান</p>
+            </div>
+            <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/5">
+              <ChevronRight size={20} />
+            </div>
+          </Link>
+        </div>
+      )}
+
       {/* Surah List */}
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-8">
+        <div className="flex items-center justify-between mb-4 px-1">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">সূরা তালিকা</h3>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-lg">
+            {convertToBanglaNumber(filteredSurahs.length)} সূরা
+          </span>
+        </div>
+        
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+            <p className="text-slate-400 text-xs font-medium">লোড হচ্ছে...</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -79,19 +118,20 @@ export default function Quran() {
               <Link 
                 key={surah.number} 
                 to={`/surah/${surah.number}`}
-                className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow active:scale-[0.98]"
+                onClick={() => localStorage.setItem('lastReadSurah', JSON.stringify({ number: surah.number, name: surah.englishName }))}
+                className="bg-white dark:bg-slate-900 rounded-[28px] p-5 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between hover:border-emerald-200 dark:hover:border-emerald-800 transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center space-x-4">
                   <div className="relative flex items-center justify-center w-10 h-10">
-                    <div className="absolute inset-0 bg-emerald-50 rounded-lg transform rotate-45"></div>
-                    <span className="relative z-10 text-emerald-700 font-bold text-sm">
+                    <div className="absolute inset-0 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl transform rotate-12 group-hover:rotate-45 transition-transform"></div>
+                    <span className="relative z-10 text-emerald-700 dark:text-emerald-400 font-bold text-xs">
                       {convertToBanglaNumber(surah.number)}
                     </span>
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base">{surah.englishName}</h3>
-                    <div className="flex items-center text-xs text-slate-500 mt-1 space-x-2">
-                      <span className="uppercase tracking-wider text-[10px] font-semibold text-emerald-600/70">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">{surah.englishName}</h3>
+                    <div className="flex items-center text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-wider space-x-2">
+                      <span className="text-emerald-600/70 dark:text-emerald-400/70">
                         {surah.revelationType === 'Meccan' ? 'মাক্কী' : 'মাদানী'}
                       </span>
                       <span>•</span>
@@ -100,7 +140,7 @@ export default function Quran() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="font-serif text-xl text-emerald-800 font-medium">{surah.name}</span>
+                  <span className="font-serif text-2xl text-emerald-800 dark:text-emerald-400 font-medium">{surah.name}</span>
                 </div>
               </Link>
             ))}

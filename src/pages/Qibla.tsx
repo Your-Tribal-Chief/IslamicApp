@@ -100,18 +100,18 @@ export default function Qibla() {
   const pointerRotation = (heading !== null && qiblaBearing !== null) ? qiblaBearing - heading : 0;
 
   return (
-    <div className="flex flex-col min-h-full bg-[#f5f5f0] pb-8">
-      <div className="bg-emerald-800 pt-12 pb-6 px-4 rounded-b-3xl shadow-md sticky top-0 z-10">
+    <div className="flex flex-col min-h-full bg-[#f5f5f0] dark:bg-[#0c0c0c] pb-8 transition-colors duration-300">
+      <div className="bg-emerald-800 dark:bg-emerald-950 pt-12 pb-6 px-4 rounded-b-3xl shadow-md sticky top-0 z-10">
         <h1 className="text-2xl font-bold text-white mb-2 text-center">কিবলা নির্দেশক</h1>
         <p className="text-emerald-100 text-sm text-center opacity-90">কাবা শরীফের দিক</p>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         {!permissionGranted ? (
-          <div className="text-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <div className="text-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
             <Compass size={48} className="mx-auto text-emerald-600 mb-4" />
-            <h2 className="text-lg font-bold text-slate-800 mb-2">কম্পাস অ্যাক্সেস প্রয়োজন</h2>
-            <p className="text-sm text-slate-600 mb-6">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">কম্পাস অ্যাক্সেস প্রয়োজন</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
               কিবলার সঠিক দিক নির্ণয় করার জন্য আপনার ডিভাইসের কম্পাস সেন্সর এবং লোকেশন অ্যাক্সেস প্রয়োজন।
             </p>
             <button
@@ -122,7 +122,7 @@ export default function Qibla() {
             </button>
           </div>
         ) : error ? (
-          <div className="text-center bg-white p-6 rounded-2xl shadow-sm border border-red-100">
+          <div className="text-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-red-100 dark:border-red-900/30 transition-colors">
             <p className="text-red-500 font-medium">{error}</p>
           </div>
         ) : (
@@ -131,19 +131,19 @@ export default function Qibla() {
             <div className="relative w-72 h-72 mb-12">
               {/* Outer Dial */}
               <div 
-                className="absolute inset-0 rounded-full border-4 border-emerald-800 shadow-xl bg-white transition-transform duration-200 ease-out"
+                className="absolute inset-0 rounded-full border-4 border-emerald-800 dark:border-emerald-900 shadow-xl bg-white dark:bg-slate-900 transition-transform duration-200 ease-out"
                 style={{ transform: `rotate(${dialRotation}deg)` }}
               >
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 font-bold text-emerald-800 text-lg">N</div>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 font-bold text-slate-400">S</div>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 font-bold text-slate-400">E</div>
-                <div className="absolute left-2 top-1/2 -translate-y-1/2 font-bold text-slate-400">W</div>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 font-bold text-emerald-800 dark:text-emerald-400 text-lg">N</div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 font-bold text-slate-400 dark:text-slate-600">S</div>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 font-bold text-slate-400 dark:text-slate-600">E</div>
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 font-bold text-slate-400 dark:text-slate-600">W</div>
                 
                 {/* Tick marks */}
                 {[...Array(12)].map((_, i) => (
                   <div 
                     key={i}
-                    className="absolute top-0 left-1/2 w-1 h-3 bg-slate-200 -translate-x-1/2 origin-[50%_144px]"
+                    className="absolute top-0 left-1/2 w-1 h-3 bg-slate-200 dark:bg-slate-800 -translate-x-1/2 origin-[50%_144px]"
                     style={{ transform: `rotate(${i * 30}deg)` }}
                   />
                 ))}
@@ -163,27 +163,27 @@ export default function Qibla() {
               )}
 
               {/* Center Dot */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-emerald-800 rounded-full z-20 shadow-md border-4 border-white"></div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-emerald-800 dark:bg-emerald-900 rounded-full z-20 shadow-md border-4 border-white dark:border-slate-800"></div>
             </div>
 
             {/* Info Cards */}
             <div className="w-full grid grid-cols-2 gap-4">
-              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                <p className="text-xs text-slate-500 mb-1">আপনার দিক</p>
-                <p className="text-xl font-bold text-slate-800">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center transition-colors">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">আপনার দিক</p>
+                <p className="text-xl font-bold text-slate-800 dark:text-slate-200">
                   {heading !== null ? `${convertToBanglaNumber(heading)}°` : '--'}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                <p className="text-xs text-slate-500 mb-1">কিবলার দিক</p>
-                <p className="text-xl font-bold text-emerald-700">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center transition-colors">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">কিবলার দিক</p>
+                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
                   {qiblaBearing !== null ? `${convertToBanglaNumber(qiblaBearing)}°` : '--'}
                 </p>
               </div>
             </div>
 
             {heading !== null && qiblaBearing !== null && Math.abs(pointerRotation % 360) < 5 && (
-              <div className="mt-6 bg-emerald-100 text-emerald-800 px-6 py-3 rounded-full font-medium text-sm animate-pulse">
+              <div className="mt-6 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 px-6 py-3 rounded-full font-medium text-sm animate-pulse">
                 আপনি কিবলার দিকে আছেন
               </div>
             )}
