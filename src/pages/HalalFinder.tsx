@@ -19,7 +19,12 @@ export default function HalalFinder() {
     setLoading(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: "AIzaSyCKiuoqdEf4EUY3qGsDVoXtRJ_92eakaT8" });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+      if (!apiKey) {
+        throw new Error("API Key is missing. Please set VITE_GEMINI_API_KEY in environment variables.");
+      }
+      
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: "Find 5 halal restaurants or places near my location. Return the names and addresses.",
@@ -64,9 +69,15 @@ export default function HalalFinder() {
           setError("হালাল রেস্টুরেন্ট খুঁজে পাওয়া যায়নি।");
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching halal places:', err);
-      setError("সার্ভার সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ এবং লোকেশন পারমিশন চেক করুন।");
+      const errorMessage = err?.message || "";
+      
+      if (errorMessage.includes("API Key")) {
+        setError("API Key সেট করা নেই। ভেরসেল সেটিংস চেক করুন।");
+      } else {
+        setError("সার্ভার সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ এবং লোকেশন পারমিশন চেক করুন।");
+      }
     } finally {
       setLoading(false);
     }

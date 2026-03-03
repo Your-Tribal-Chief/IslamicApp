@@ -21,7 +21,12 @@ export default function MosqueFinder() {
     setLoading(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: "AIzaSyCKiuoqdEf4EUY3qGsDVoXtRJ_92eakaT8" });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+      if (!apiKey) {
+        throw new Error("API Key is missing. Please set VITE_GEMINI_API_KEY in environment variables.");
+      }
+      
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: "Find 5 mosques near my location. Return the names and addresses.",
@@ -66,9 +71,17 @@ export default function MosqueFinder() {
           setError("মসজিদ খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।");
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching mosques:', err);
-      setError("মসজিদ খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ এবং লোকেশন পারমিশন চেক করুন।");
+      const errorMessage = err?.message || "";
+      
+      if (errorMessage.includes("API Key")) {
+        setError("API Key সেট করা নেই। ভেরসেল সেটিংস চেক করুন।");
+      } else if (errorMessage.includes("permission")) {
+        setError("লোকেশন পারমিশন প্রয়োজন। অনুগ্রহ করে ব্রাউজার সেটিংস চেক করুন।");
+      } else {
+        setError("মসজিদ খুঁজতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
+      }
     } finally {
       setLoading(false);
     }
