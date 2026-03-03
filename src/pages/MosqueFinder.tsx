@@ -72,15 +72,17 @@ export default function MosqueFinder() {
         }
       }
     } catch (err: any) {
-      console.error('Error fetching mosques:', err);
-      const errorMessage = err?.message || "";
+      console.error('Detailed Mosque Search Error:', err);
+      const errorMessage = err?.message || String(err);
       
       if (errorMessage.includes("API Key")) {
-        setError("API Key সেট করা নেই। ভেরসেল সেটিংস চেক করুন।");
+        setError("API Key সেট করা নেই বা ভুল। ভেরসেল সেটিংস চেক করুন।");
       } else if (errorMessage.includes("permission")) {
         setError("লোকেশন পারমিশন প্রয়োজন। অনুগ্রহ করে ব্রাউজার সেটিংস চেক করুন।");
+      } else if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        setError("Gemini 2.5 মডেলটি আপনার অঞ্চলে এখনও উপলব্ধ নয়।");
       } else {
-        setError("মসজিদ খুঁজতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
+        setError(`ত্রুটি: ${errorMessage.substring(0, 100)}...`);
       }
     } finally {
       setLoading(false);
