@@ -62,11 +62,39 @@ export default function MosqueFinder() {
         }));
         setMosques(foundMosques);
       } else {
-        setError("কাছাকাছি কোনো মসজিদ পাওয়া যায়নি।");
+        throw new Error("No mosques found with Gemini");
       }
     } catch (err: any) {
-      console.error('Error fetching mosques:', err);
-      setError("মসজিদ খুঁজতে সমস্যা হয়েছে। আপনার এপিআই কি (API Key) এবং ইন্টারনেট চেক করুন।");
+      console.warn('Gemini failed, trying OpenStreetMap fallback:', err);
+      // Fallback to OpenStreetMap (Overpass API)
+      try {
+        const radius = 3000; // 3km radius as requested
+        const query = `[out:json];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng}););out center;`;
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("OSM Fallback failed");
+        
+        const data = await response.json();
+        
+        if (data.elements && data.elements.length > 0) {
+          const foundMosques: Mosque[] = data.elements.map((el: any) => {
+            const latVal = el.lat || el.center?.lat;
+            const lonVal = el.lon || el.center?.lon;
+            return {
+              name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'মসজিদ',
+              address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
+              url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
+            };
+          });
+          setMosques(foundMosques);
+        } else {
+          setError("কাছাকাছি কোনো মসজিদ পাওয়া যায়নি।");
+        }
+      } catch (osmErr) {
+        console.error('All search methods failed:', osmErr);
+        setError("মসজিদ খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন।");
+      }
     } finally {
       setLoading(false);
     }

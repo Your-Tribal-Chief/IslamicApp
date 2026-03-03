@@ -60,11 +60,47 @@ export default function HalalFinder() {
         }));
         setPlaces(foundPlaces);
       } else {
-        setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি।");
+        throw new Error("No halal places found with Gemini");
       }
     } catch (err: any) {
-      console.error('Error fetching halal places:', err);
-      setError("হালাল রেস্টুরেন্ট খুঁজতে সমস্যা হয়েছে। আপনার এপিআই কি (API Key) এবং ইন্টারনেট চেক করুন।");
+      console.warn('Gemini failed, trying OpenStreetMap fallback:', err);
+      // Fallback to OpenStreetMap (Overpass API)
+      try {
+        const radius = 5000; // 5km radius
+        const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("OSM Fallback failed");
+        
+        const data = await response.json();
+        
+        if (data.elements && data.elements.length > 0) {
+          const foundPlaces: Place[] = data.elements
+            .filter((el: any) => {
+              const name = (el.tags.name || '').toLowerCase();
+              const cuisine = (el.tags.cuisine || '').toLowerCase();
+              const diet = (el.tags['diet:halal'] || '').toLowerCase();
+              const halalTag = (el.tags.halal || '').toLowerCase();
+              return name.includes('halal') || cuisine.includes('halal') || diet === 'yes' || halalTag === 'yes';
+            })
+            .map((el: any) => {
+              const latVal = el.lat || el.center?.lat;
+              const lonVal = el.lon || el.center?.lon;
+              return {
+                name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'রেস্টুরেন্ট',
+                address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
+                url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
+              };
+            });
+          setPlaces(foundPlaces);
+        } else {
+          setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি।");
+        }
+      } catch (osmErr) {
+        console.error('All search methods failed:', osmErr);
+        setError("হালাল রেস্টুরেন্ট খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন।");
+      }
     } finally {
       setLoading(false);
     }
