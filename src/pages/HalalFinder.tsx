@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MapPin, Navigation, ExternalLink, RefreshCw, Utensils } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface Place {
   name: string;
@@ -17,59 +18,56 @@ export default function HalalFinder() {
   const fetchHalalPlaces = async (lat: number, lng: number) => {
     setLoading(true);
     setError(null);
-    
-    const interpreters = [
-      'https://overpass-api.de/api/interpreter',
-      'https://overpass.kumi.systems/api/interpreter',
-      'https://lz4.overpass-api.de/api/interpreter'
-    ];
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+      if (!apiKey) throw new Error("API Key missing");
 
-    const radius = 5000; // 5km radius
-    const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
-    
-    let success = false;
-    for (const baseUrl of interpreters) {
-      if (success) break;
-      try {
-        const url = `${baseUrl}?data=${encodeURIComponent(query)}`;
-        const response = await fetch(url);
-        if (!response.ok) continue;
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Find 5-7 halal restaurants or food places within a 5km radius of my current location (Latitude: ${lat}, Longitude: ${lng}). 
+        For each place, provide:
+        1. The name of the restaurant.
+        2. The specific address or location description.
+        3. A Google Maps link if possible.
         
-        const data = await response.json();
-        
-        if (data.elements && data.elements.length > 0) {
-          const foundPlaces: Place[] = data.elements
-            .filter((el: any) => {
-              const name = (el.tags.name || '').toLowerCase();
-              const cuisine = (el.tags.cuisine || '').toLowerCase();
-              const diet = (el.tags['diet:halal'] || '').toLowerCase();
-              const halalTag = (el.tags.halal || '').toLowerCase();
-              return name.includes('halal') || cuisine.includes('halal') || diet === 'yes' || halalTag === 'yes';
-            })
-            .map((el: any) => {
-              const latVal = el.lat || el.center?.lat;
-              const lonVal = el.lon || el.center?.lon;
-              return {
-                name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'রেস্টুরেন্ট',
-                address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
-                url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
-              };
-            });
-
-          if (foundPlaces.length > 0) {
-            setPlaces(foundPlaces);
-            success = true;
+        Return the data in a structured JSON format.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                address: { type: Type.STRING },
+                url: { type: Type.STRING }
+              },
+              required: ["name", "address"]
+            }
           }
-        }
-      } catch (err) {
-        console.warn(`Interpreter ${baseUrl} failed, trying next...`);
-      }
-    }
+        },
+      });
 
-    if (!success) {
-      setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি বা সার্ভার সমস্যা হয়েছে।");
+      const data = JSON.parse(response.text || '[]');
+      
+      if (data && data.length > 0) {
+        const foundPlaces: Place[] = data.map((p: any) => ({
+          name: p.name,
+          address: p.address,
+          url: p.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.address)}`
+        }));
+        setPlaces(foundPlaces);
+      } else {
+        setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি।");
+      }
+    } catch (err: any) {
+      console.error('Error fetching halal places:', err);
+      setError("হালাল রেস্টুরেন্ট খুঁজতে সমস্যা হয়েছে। আপনার এপিআই কি (API Key) এবং ইন্টারনেট চেক করুন।");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const getMyLocation = () => {

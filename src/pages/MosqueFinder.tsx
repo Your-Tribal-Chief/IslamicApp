@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MapPin, Navigation, ExternalLink, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface Mosque {
   name: string;
@@ -19,48 +20,56 @@ export default function MosqueFinder() {
   const fetchNearbyMosques = async (lat: number, lng: number) => {
     setLoading(true);
     setError(null);
-    
-    const interpreters = [
-      'https://overpass-api.de/api/interpreter',
-      'https://overpass.kumi.systems/api/interpreter',
-      'https://lz4.overpass-api.de/api/interpreter'
-    ];
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+      if (!apiKey) throw new Error("API Key missing");
 
-    const radius = 5000; // 5km radius
-    const query = `[out:json];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng}););out center;`;
-    
-    let success = false;
-    for (const baseUrl of interpreters) {
-      if (success) break;
-      try {
-        const url = `${baseUrl}?data=${encodeURIComponent(query)}`;
-        const response = await fetch(url);
-        if (!response.ok) continue;
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Find 5-7 mosques within a 3km radius of my current location (Latitude: ${lat}, Longitude: ${lng}). 
+        For each mosque, provide:
+        1. The name of the mosque.
+        2. The specific address or location description.
+        3. A Google Maps link if possible.
         
-        const data = await response.json();
-        
-        if (data.elements && data.elements.length > 0) {
-          const foundMosques: Mosque[] = data.elements.map((el: any) => {
-            const latVal = el.lat || el.center?.lat;
-            const lonVal = el.lon || el.center?.lon;
-            return {
-              name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'মসজিদ',
-              address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
-              url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
-            };
-          });
-          setMosques(foundMosques);
-          success = true;
-        }
-      } catch (err) {
-        console.warn(`Interpreter ${baseUrl} failed, trying next...`);
+        Return the data in a structured JSON format.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                address: { type: Type.STRING },
+                url: { type: Type.STRING }
+              },
+              required: ["name", "address"]
+            }
+          }
+        },
+      });
+
+      const data = JSON.parse(response.text || '[]');
+      
+      if (data && data.length > 0) {
+        const foundMosques: Mosque[] = data.map((m: any) => ({
+          name: m.name,
+          address: m.address,
+          url: m.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.name + ' ' + m.address)}`
+        }));
+        setMosques(foundMosques);
+      } else {
+        setError("কাছাকাছি কোনো মসজিদ পাওয়া যায়নি।");
       }
+    } catch (err: any) {
+      console.error('Error fetching mosques:', err);
+      setError("মসজিদ খুঁজতে সমস্যা হয়েছে। আপনার এপিআই কি (API Key) এবং ইন্টারনেট চেক করুন।");
+    } finally {
+      setLoading(false);
     }
-
-    if (!success) {
-      setError("কাছাকাছি কোনো মসজিদ পাওয়া যায়নি বা সার্ভার সমস্যা হয়েছে।");
-    }
-    setLoading(false);
   };
 
   const getMyLocation = () => {

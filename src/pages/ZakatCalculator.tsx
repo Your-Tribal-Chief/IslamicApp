@@ -21,7 +21,7 @@ export default function ZakatCalculator() {
   const fetchCurrentPrices = async () => {
     setFetchingPrices(true);
     try {
-      const apiKey = process.env.GEMINI_API_KEY || "";
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
       if (!apiKey) throw new Error("API Key missing");
       
       const ai = new GoogleGenAI({ apiKey });
