@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import IslamicCalendar from './pages/IslamicCalendar';
 import HalalFinder from './pages/HalalFinder';
 import More from './pages/More';
+import AskHujur from './pages/AskHujur';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 function AppContent() {
@@ -38,6 +39,7 @@ function AppContent() {
           <Route path="/mosques" element={<MosqueFinder />} />
           <Route path="/calendar" element={<IslamicCalendar />} />
           <Route path="/halal" element={<HalalFinder />} />
+          <Route path="/ask-hujur" element={<AskHujur />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/more" element={<More />} />
         </Routes>

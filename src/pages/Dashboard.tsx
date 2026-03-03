@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { MapPin, Moon, Sun, BookOpen, Compass, CircleDot, Heart, Calculator, ChevronRight, BookText, MessageSquare, Bell, BellOff } from 'lucide-react';
+import { MapPin, Moon, Sun, BookOpen, Compass, CircleDot, Heart, Calculator, ChevronRight, BookText, MessageSquare, Bell, BellOff, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, addMinutes, isBefore, parse } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -327,6 +327,7 @@ export default function Dashboard() {
           <QuickAction to="/tasbih" icon={<CircleDot className="text-blue-500" />} label="তাসবিহ" />
           <QuickAction to="/names" icon={<Heart className="text-pink-500" />} label="নামসমূহ" />
           <QuickAction to="/zakat" icon={<Calculator className="text-emerald-500" />} label="যাকাত" />
+          <QuickAction to="/ask-hujur" icon={<Sparkles className="text-amber-500" />} label="হুজুর" />
         </div>
       </div>
 
