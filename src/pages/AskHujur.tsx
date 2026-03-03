@@ -1,13 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Send, Bot, User, Sparkles } from 'lucide-react';
+import { ChevronLeft, Send, Bot, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-// Declare puter for TypeScript as it's loaded via CDN
-declare global {
-  interface Window {
-    puter: any;
-  }
-}
+import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -41,24 +35,30 @@ export default function AskHujur() {
     setLoading(true);
 
     try {
-      if (!window.puter) {
-        throw new Error("Puter library not loaded. Please check your internet connection.");
-      }
-      // Construct the prompt with persona and history
-      const systemPrompt = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
-      
-      // Format history for the model
-      const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'Hujur'}: ${m.content}`).join('\n');
-      const fullPrompt = `${systemPrompt}\n\nChat History:\n${historyText}\n\nUser: ${userMessage}\n\nHujur:`;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+      if (!apiKey) throw new Error("API Key missing");
 
-      const response = await window.puter.ai.chat(fullPrompt, { 
-        model: "qwen/qwen3.5-397b-a17b" 
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Construct the prompt with persona and history
+      const systemInstruction = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible. Use Google Search to find accurate and up-to-date information if needed.";
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          ...messages.map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.content }]
+          })),
+          { role: 'user', parts: [{ text: userMessage }] }
+        ],
+        config: {
+          systemInstruction,
+          tools: [{ googleSearch: {} }]
+        }
       });
 
-      // puter.ai.chat returns a string or an object depending on version, 
-      // but based on the provided docs, it returns a response that can be printed.
-      // Usually it's a string for non-streaming.
-      const assistantMessage = typeof response === 'string' ? response : (response as any).text || response.toString();
+      const assistantMessage = response.text || "দুঃখিত, আমি কোনো উত্তর খুঁজে পাইনি।";
       
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (error) {
