@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MapPin, Navigation, ExternalLink, RefreshCw, Utensils } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
 
 interface Place {
   name: string;
@@ -18,71 +17,59 @@ export default function HalalFinder() {
   const fetchHalalPlaces = async (lat: number, lng: number) => {
     setLoading(true);
     setError(null);
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      if (!apiKey) {
-        throw new Error("API Key is missing. Please set VITE_GEMINI_API_KEY in environment variables.");
-      }
-      
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: "Find 5 halal restaurants or places near my location. Return the names and addresses.",
-        config: {
-          tools: [{ googleMaps: {} }],
-          toolConfig: {
-            retrievalConfig: {
-              latLng: {
-                latitude: lat,
-                longitude: lng
-              }
-            }
-          }
-        },
-      });
+    
+    const interpreters = [
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://lz4.overpass-api.de/api/interpreter'
+    ];
 
-      if (!response || !response.candidates || response.candidates.length === 0) {
-        throw new Error("No candidates returned from Gemini API");
-      }
-
-      const chunks = response.candidates[0].groundingMetadata?.groundingChunks;
-      if (chunks && chunks.length > 0) {
-        const foundPlaces: Place[] = chunks
-          .filter(chunk => chunk.maps)
-          .map(chunk => ({
-            name: chunk.maps.title || 'Halal Place',
-            address: chunk.maps.uri || '',
-            url: chunk.maps.uri
-          }));
+    const radius = 5000; // 5km radius
+    const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
+    
+    let success = false;
+    for (const baseUrl of interpreters) {
+      if (success) break;
+      try {
+        const url = `${baseUrl}?data=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        if (!response.ok) continue;
         
-        if (foundPlaces.length > 0) {
-          setPlaces(foundPlaces);
-        } else {
-          setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি।");
+        const data = await response.json();
+        
+        if (data.elements && data.elements.length > 0) {
+          const foundPlaces: Place[] = data.elements
+            .filter((el: any) => {
+              const name = (el.tags.name || '').toLowerCase();
+              const cuisine = (el.tags.cuisine || '').toLowerCase();
+              const diet = (el.tags['diet:halal'] || '').toLowerCase();
+              const halalTag = (el.tags.halal || '').toLowerCase();
+              return name.includes('halal') || cuisine.includes('halal') || diet === 'yes' || halalTag === 'yes';
+            })
+            .map((el: any) => {
+              const latVal = el.lat || el.center?.lat;
+              const lonVal = el.lon || el.center?.lon;
+              return {
+                name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'রেস্টুরেন্ট',
+                address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
+                url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
+              };
+            });
+
+          if (foundPlaces.length > 0) {
+            setPlaces(foundPlaces);
+            success = true;
+          }
         }
-      } else {
-        // Fallback: check if there's text response
-        const textResponse = response.text;
-        if (textResponse) {
-          setError("রেস্টুরেন্ট পাওয়া গেছে কিন্তু ম্যাপে দেখানো যাচ্ছে না। অনুগ্রহ করে ম্যাপ অ্যাপে খুঁজুন।");
-        } else {
-          setError("হালাল রেস্টুরেন্ট খুঁজে পাওয়া যায়নি।");
-        }
+      } catch (err) {
+        console.warn(`Interpreter ${baseUrl} failed, trying next...`);
       }
-    } catch (err: any) {
-      console.error('Detailed Halal Search Error:', err);
-      const errorMessage = err?.message || String(err);
-      
-      if (errorMessage.includes("API Key")) {
-        setError("API Key সেট করা নেই বা ভুল। ভেরসেল সেটিংস চেক করুন।");
-      } else if (errorMessage.includes("404") || errorMessage.includes("not found")) {
-        setError("Gemini 2.5 মডেলটি আপনার অঞ্চলে এখনও উপলব্ধ নয়।");
-      } else {
-        setError(`ত্রুটি: ${errorMessage.substring(0, 100)}...`);
-      }
-    } finally {
-      setLoading(false);
     }
+
+    if (!success) {
+      setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি বা সার্ভার সমস্যা হয়েছে।");
+    }
+    setLoading(false);
   };
 
   const getMyLocation = () => {

@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [hijriDate, setHijriDate] = useState<HijriDate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dailyAyat, setDailyAyat] = useState({ text: '', ref: '' });
   const [currentPrayer, setCurrentPrayer] = useState<{ name: string; id: string; time: string; endsIn: string } | null>(null);
   const [nextPrayer, setNextPrayer] = useState<{ name: string; id: string; time: string; startsIn: string } | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
@@ -153,6 +154,25 @@ export default function Dashboard() {
   }, [notificationsEnabled]);
 
   useEffect(() => {
+    const ayats = [
+      { text: "নিশ্চয় কষ্টের সাথেই স্বস্তি রয়েছে।", ref: "সূরা আল-ইনশিরাহ, আয়াত ৫-৬" },
+      { text: "তোমরা আমাকে স্মরণ করো, আমিও তোমাদের স্মরণ করব।", ref: "সূরা আল-বাকারা, আয়াত ১৫২" },
+      { text: "আল্লাহ ধৈর্যশীলদের সাথে আছেন।", ref: "সূরা আল-বাকারা, আয়াত ১৫৩" },
+      { text: "হে আমাদের পালনকর্তা, আমাদের সরল পথ প্রদর্শন করুন।", ref: "সূরা আল-ফাতিহা, আয়াত ৬" },
+      { text: "আল্লাহর রহমত থেকে নিরাশ হয়ো না।", ref: "সূরা আজ-জুমার, আয়াত ৫৩" },
+      { text: "নিশ্চয় আল্লাহ তওবাকারীদের ভালোবাসেন।", ref: "সূরা আল-বাকারা, আয়াত ২২২" },
+      { text: "তোমাদের পালনকর্তা বলেন, তোমরা আমাকে ডাকো, আমি তোমাদের ডাকে সাড়া দেব।", ref: "সূরা গাফির, আয়াত ৬০" }
+    ];
+    
+    // Pick ayat based on day of the year
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+    
+    setDailyAyat(ayats[dayOfYear % ayats.length]);
+
     async function fetchData() {
       try {
         // Try to get location
@@ -343,9 +363,9 @@ export default function Dashboard() {
             আজকের আয়াত
           </h3>
           <p className="text-emerald-900 dark:text-emerald-100 font-serif text-lg leading-relaxed italic">
-            "নিশ্চয় কষ্টের সাথেই স্বস্তি রয়েছে।"
+            "{dailyAyat.text}"
           </p>
-          <p className="text-emerald-600 dark:text-emerald-500 text-xs mt-3 font-medium">— সূরা আল-ইনশিরাহ, আয়াত ৫-৬</p>
+          <p className="text-emerald-600 dark:text-emerald-500 text-xs mt-3 font-medium">— {dailyAyat.ref}</p>
         </div>
       </div>
 
@@ -353,9 +373,9 @@ export default function Dashboard() {
       <div className="px-4 mt-8 mb-8">
         <div className="flex items-center justify-between mb-4 px-1">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">নামাজের সময়সূচি</h3>
-          <button className="text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center">
+          <Link to="/calendar" className="text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center">
             বিস্তারিত <ChevronRight size={14} />
-          </button>
+          </Link>
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
           <PrayerRow name="ফজর" time={prayerTimes?.Fajr} icon={<Moon size={18} />} isUpcoming={nextPrayer?.name === 'ফজর'} />

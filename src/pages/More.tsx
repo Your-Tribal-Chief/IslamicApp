@@ -35,11 +35,28 @@ export default function More() {
 
   const supportItems = [
     { id: 'settings', icon: <Settings className="text-slate-500" />, label: 'সেটিংস', path: '/settings' },
-    { id: 'about', icon: <Info className="text-slate-500" />, label: 'অ্যাপ সম্পর্কে', path: '#' },
-    { id: 'share', icon: <Share2 className="text-slate-500" />, label: 'শেয়ার করুন', path: '#' },
-    { id: 'rate', icon: <Star className="text-slate-500" />, label: 'রেটিং দিন', path: '#' },
-    { id: 'privacy', icon: <ShieldCheck className="text-slate-500" />, label: 'প্রাইভেসি পলিসি', path: '#' },
+    { id: 'about', icon: <Info className="text-slate-500" />, label: 'অ্যাপ সম্পর্কে', path: 'about' },
+    { id: 'share', icon: <Share2 className="text-slate-500" />, label: 'শেয়ার করুন', path: 'share' },
+    { id: 'rate', icon: <Star className="text-slate-500" />, label: 'রেটিং দিন', path: 'rate' },
+    { id: 'privacy', icon: <ShieldCheck className="text-slate-500" />, label: 'প্রাইভেসি পলিসি', path: 'privacy' },
   ];
+
+  const handleSupportClick = (item: any) => {
+    if (item.path.startsWith('/')) {
+      navigate(item.path);
+    } else {
+      // Pseudo functionality with visual feedback
+      if (item.id === 'about') {
+        alert("অ্যাপ সম্পর্কে:\n\nএই অ্যাপটি তৈরি করেছেন আহমেদ সাজিদ হাসান (Ahmed Sajid Hasan)।\nতিনি বর্তমানে বুয়েট সিএসই '২১ ব্যাচের (BUET CSE '21 Batch) একজন শিক্ষার্থী।");
+      } else if (item.id === 'share') {
+        alert("শেয়ার ফিচারটি শীঘ্রই আসছে!");
+      } else if (item.id === 'rate') {
+        alert("রেটিং দেওয়ার জন্য আপনাকে ধন্যবাদ!");
+      } else if (item.id === 'privacy') {
+        alert("আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ।");
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-full bg-[#f5f5f0] dark:bg-[#0c0c0c] pb-8 transition-colors duration-300">
@@ -74,8 +91,8 @@ export default function More() {
           {supportItems.map((item, index) => (
             <button
               key={item.id}
-              onClick={() => item.path !== '#' && navigate(item.path)}
-              className={`w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${index !== supportItems.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
+              onClick={() => handleSupportClick(item)}
+              className={`w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 active:bg-emerald-50 dark:active:bg-emerald-900/20 transition-all ${index !== supportItems.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
             >
               <div className="flex items-center space-x-4">
                 <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800">
@@ -88,8 +105,9 @@ export default function More() {
           ))}
         </div>
 
-        <div className="text-center pt-4">
-          <p className="text-xs text-slate-400 font-medium tracking-widest uppercase">ভার্সন ১.০.০</p>
+        <div className="text-center pt-4 pb-4">
+          <p className="text-xs text-slate-400 font-medium tracking-widest uppercase mb-1">ভার্সন ১.০.০</p>
+          <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-bold uppercase tracking-wider">Built by Ahmed Sajid Hasan (BUET CSE '21)</p>
         </div>
       </div>
     </div>
