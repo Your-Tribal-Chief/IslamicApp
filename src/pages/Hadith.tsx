@@ -16,6 +16,7 @@ interface HadithItem {
   hadithnumber: number;
   arabicText: string;
   banglaText: string;
+  transliteration?: string;
   reference: string;
 }
 
@@ -58,12 +59,23 @@ export default function Hadith() {
         const benData = await benRes.json();
         const araData = await araRes.json();
 
+        // Try to fetch English for transliteration (if available)
+        let engData: any = null;
+        try {
+          const engRes = await fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/eng-${selectedBook}/sections/${selectedSection}.json`);
+          if (engRes.ok) engData = await engRes.json();
+        } catch (e) {
+          console.warn('English edition not found');
+        }
+
         const merged: HadithItem[] = benData.hadiths.map((b: any) => {
           const a = araData.hadiths.find((x: any) => x.hadithnumber === b.hadithnumber);
+          const e = engData?.hadiths.find((x: any) => x.hadithnumber === b.hadithnumber);
           return {
             hadithnumber: b.hadithnumber,
             arabicText: a ? a.text : '',
             banglaText: b.text,
+            transliteration: e ? e.text : undefined,
             reference: `${BOOKS.find(book => book.id === selectedBook)?.name}, হাদিস ${convertToBanglaNumber(b.hadithnumber)}`
           };
         });
@@ -179,6 +191,14 @@ export default function Hadith() {
                   <div className="text-right mb-8">
                     <p className="font-serif text-2xl leading-[2.4] text-slate-800 dark:text-slate-200" dir="rtl">
                       {hadith.arabicText}
+                    </p>
+                  </div>
+                )}
+
+                {hadith.transliteration && (
+                  <div className="mb-4 px-1">
+                    <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold leading-relaxed italic">
+                      উচ্চারণ: {hadith.transliteration}
                     </p>
                   </div>
                 )}

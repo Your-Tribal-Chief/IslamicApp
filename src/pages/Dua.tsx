@@ -81,6 +81,14 @@ export default function Dua() {
               </p>
             </div>
 
+            {dua.transliteration && (
+              <div className="mb-4 px-1">
+                <p className="text-emerald-600 dark:text-emerald-400 text-xs font-bold leading-relaxed italic">
+                  উচ্চারণ: {dua.transliteration}
+                </p>
+              </div>
+            )}
+
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 transition-colors">
               <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed font-medium">
                 {dua.bangla}

@@ -233,11 +233,21 @@ export default function Dashboard() {
         
         <div className="relative z-10 p-6 flex flex-col h-full justify-between text-white">
           <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold font-serif mb-1">আস-সালামু আলাইকুম</h1>
-              <div className="flex items-center text-emerald-100/80 text-xs font-medium">
-                <MapPin size={12} className="mr-1" />
-                <span>ঢাকা, বাংলাদেশ</span>
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
+                <img 
+                  src="https://cdn-icons-png.flaticon.com/512/2913/2913520.png" 
+                  alt="Logo" 
+                  className="w-8 h-8 object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold font-serif mb-0.5">আস-সালামু আলাইকুম</h1>
+                <div className="flex items-center text-emerald-100/80 text-[10px] font-medium">
+                  <MapPin size={10} className="mr-1" />
+                  <span>ঢাকা, বাংলাদেশ</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
