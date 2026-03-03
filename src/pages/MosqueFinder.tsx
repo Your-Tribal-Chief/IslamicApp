@@ -38,8 +38,12 @@ export default function MosqueFinder() {
         },
       });
 
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (chunks) {
+      if (!response || !response.candidates || response.candidates.length === 0) {
+        throw new Error("No candidates returned from Gemini API");
+      }
+
+      const chunks = response.candidates[0].groundingMetadata?.groundingChunks;
+      if (chunks && chunks.length > 0) {
         const foundMosques: Mosque[] = chunks
           .filter(chunk => chunk.maps)
           .map(chunk => ({
@@ -51,15 +55,20 @@ export default function MosqueFinder() {
         if (foundMosques.length > 0) {
           setMosques(foundMosques);
         } else {
-          // Fallback if no grounding chunks but text exists
           setError("কাছাকাছি কোনো মসজিদ পাওয়া যায়নি।");
         }
       } else {
-        setError("মসজিদ খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।");
+        // Fallback: check if there's text response
+        const textResponse = response.text;
+        if (textResponse) {
+          setError("মসজিদ পাওয়া গেছে কিন্তু ম্যাপে দেখানো যাচ্ছে না। অনুগ্রহ করে ম্যাপ অ্যাপে খুঁজুন।");
+        } else {
+          setError("মসজিদ খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।");
+        }
       }
     } catch (err) {
       console.error('Error fetching mosques:', err);
-      setError("মসজিদ খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন।");
+      setError("মসজিদ খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ এবং লোকেশন পারমিশন চেক করুন।");
     } finally {
       setLoading(false);
     }
@@ -67,26 +76,39 @@ export default function MosqueFinder() {
 
   const getMyLocation = () => {
     setLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const loc = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setLocation(loc);
-          fetchNearbyMosques(loc.lat, loc.lng);
-        },
-        (err) => {
-          console.error('Geolocation error:', err);
-          setError("আপনার লোকেশন পাওয়া যায়নি। অনুগ্রহ করে পারমিশন দিন।");
-          setLoading(false);
-        }
-      );
-    } else {
+    setError(null);
+    
+    if (!navigator.geolocation) {
       setError("আপনার ব্রাউজার লোকেশন সাপোর্ট করে না।");
       setLoading(false);
+      return;
     }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const loc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setLocation(loc);
+        fetchNearbyMosques(loc.lat, loc.lng);
+      },
+      (err) => {
+        console.error('Geolocation error:', err);
+        let msg = "আপনার লোকেশন পাওয়া যায়নি।";
+        if (err.code === 1) msg = "লোকেশন পারমিশন প্রয়োজন। অনুগ্রহ করে সেটিংস থেকে পারমিশন দিন।";
+        else if (err.code === 3) msg = "লোকেশন পেতে অনেক সময় লাগছে। আবার চেষ্টা করুন।";
+        setError(msg);
+        setLoading(false);
+      },
+      options
+    );
   };
 
   useEffect(() => {
