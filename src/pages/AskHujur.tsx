@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Send, Bot, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -35,35 +34,37 @@ export default function AskHujur() {
     setLoading(true);
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      if (!apiKey) throw new Error("API Key missing");
-
-      const ai = new GoogleGenAI({ apiKey });
-      
-      // Construct the prompt with persona and history
-      const systemInstruction = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible. Use Google Search to find accurate and up-to-date information if needed.";
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          ...messages.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
-          })),
-          { role: 'user', parts: [{ text: userMessage }] }
-        ],
-        config: {
-          systemInstruction,
-          tools: [{ googleSearch: {} }]
-        }
+      const response = await fetch("/api/ask-hujur", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: [
+            ...messages.map(m => ({
+              role: m.role,
+              content: m.content
+            })),
+            { role: 'user', content: userMessage }
+          ]
+        })
       });
 
-      const assistantMessage = response.text || "দুঃখিত, আমি কোনো উত্তর খুঁজে পাইনি।";
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "সার্ভার থেকে উত্তর পাওয়া যায়নি।");
+      }
+
+      const assistantMessage = data.choices[0].message.content;
       
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না। অনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন এবং আবার চেষ্টা করুন।' }]);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না।\n\nত্রুটি: ${error.message}\n\nঅনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন এবং আবার চেষ্টা করুন।` 
+      }]);
     } finally {
       setLoading(false);
     }
