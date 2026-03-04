@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Send, Bot, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -34,33 +35,80 @@ export default function AskHujur() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/ask-hujur", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messages: [
-            ...messages.map(m => ({
-              role: m.role,
-              content: m.content
-            })),
-            { role: 'user', content: userMessage }
-          ]
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "সার্ভার থেকে উত্তর পাওয়া যায়নি।");
+      // Check server health first
+      let serverHealthy = false;
+      try {
+        const healthRes = await fetch("/api/health");
+        if (healthRes.ok) {
+          const healthData = await healthRes.json();
+          serverHealthy = healthData.status === "ok";
+        }
+      } catch (e) {
+        console.warn("Server health check failed, will try client-side fallback if needed", e);
       }
 
-      const assistantMessage = data.choices[0].message.content;
+      let assistantMessage = "";
+
+      if (serverHealthy) {
+        const response = await fetch("/api/ask-hujur", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            messages: [
+              ...messages.map(m => ({
+                role: m.role,
+                content: m.content
+              })),
+              { role: 'user', content: userMessage }
+            ]
+          })
+        });
+
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          if (response.ok) {
+            assistantMessage = data.choices[0].message.content;
+          } else {
+            console.error("Server API Error:", data);
+            throw new Error(data.error || data.message || "AI Service Error");
+          }
+        } else {
+          const text = await response.text();
+          console.error("Non-JSON response from server:", text);
+          throw new Error("Server returned non-JSON response");
+        }
+      } else {
+        // Client-side fallback to Gemini
+        console.log("Using client-side Gemini fallback...");
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) throw new Error("Server unreachable and no client-side API key found.");
+
+        const ai = new GoogleGenAI({ apiKey });
+        
+        const systemInstruction = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
+        
+        const result = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            ...messages.map(m => ({
+              role: m.role === 'user' ? 'user' : 'model',
+              parts: [{ text: m.content }]
+            })),
+            { role: 'user', parts: [{ text: userMessage }] }
+          ],
+          config: {
+            systemInstruction
+          }
+        });
+        assistantMessage = result.text || "দুঃখিত, আমি কোনো উত্তর খুঁজে পাইনি।";
+      }
       
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Final Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: `দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না।\n\nত্রুটি: ${error.message}\n\nঅনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন এবং আবার চেষ্টা করুন।` 

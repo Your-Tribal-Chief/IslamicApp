@@ -8,7 +8,13 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  console.log(`Starting server in ${process.env.NODE_ENV || 'development'} mode...`);
+
   app.use(express.json());
+
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", mode: process.env.NODE_ENV || 'development' });
+  });
 
   // API Route for Ask Hujur (Proxy to AI Providers)
   app.post("/api/ask-hujur", async (req, res) => {
