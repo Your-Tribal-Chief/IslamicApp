@@ -11,11 +11,17 @@ interface Surah {
   revelationType: string;
 }
 
+interface LastRead {
+  surahNumber: number;
+  surahName: string;
+  ayahNumber: number;
+}
+
 export default function Quran() {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [lastRead, setLastRead] = useState<{ number: number; name: string } | null>(null);
+  const [lastRead, setLastRead] = useState<LastRead | null>(null);
 
   useEffect(() => {
     async function fetchSurahs() {
@@ -31,9 +37,20 @@ export default function Quran() {
     }
     fetchSurahs();
 
-    const saved = localStorage.getItem('lastReadSurah');
+    const saved = localStorage.getItem('lastReadAyah');
     if (saved) {
       setLastRead(JSON.parse(saved));
+    } else {
+      // Fallback to old format if exists
+      const oldSaved = localStorage.getItem('lastReadSurah');
+      if (oldSaved) {
+        const parsed = JSON.parse(oldSaved);
+        setLastRead({
+          surahNumber: parsed.number,
+          surahName: parsed.name,
+          ayahNumber: 1
+        });
+      }
     }
   }, []);
 
@@ -77,7 +94,7 @@ export default function Quran() {
       {lastRead && !searchQuery && (
         <div className="px-4 mt-6">
           <Link 
-            to={`/surah/${lastRead.number}`}
+            to={`/surah/${lastRead.surahNumber}?ayah=${lastRead.ayahNumber}&autoplay=true`}
             className="bg-emerald-900 dark:bg-emerald-950 rounded-[32px] p-6 shadow-xl shadow-emerald-900/20 text-white flex items-center justify-between relative overflow-hidden group border border-emerald-800 dark:border-emerald-900"
           >
             <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
@@ -88,8 +105,8 @@ export default function Quran() {
                 <History size={12} />
                 <span>সর্বশেষ পঠিত</span>
               </div>
-              <h3 className="text-2xl font-bold font-serif">{lastRead.name}</h3>
-              <p className="text-emerald-100/60 text-xs mt-1">পড়া চালিয়ে যান</p>
+              <h3 className="text-2xl font-bold font-serif">{lastRead.surahName}</h3>
+              <p className="text-emerald-100/60 text-xs mt-1">আয়াত {convertToBanglaNumber(lastRead.ayahNumber)} থেকে পড়া চালিয়ে যান</p>
             </div>
             <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/5">
               <ChevronRight size={20} />
@@ -118,7 +135,15 @@ export default function Quran() {
               <Link 
                 key={surah.number} 
                 to={`/surah/${surah.number}`}
-                onClick={() => localStorage.setItem('lastReadSurah', JSON.stringify({ number: surah.number, name: surah.englishName }))}
+                onClick={() => {
+                  const lastRead = {
+                    surahNumber: surah.number,
+                    surahName: surah.englishName,
+                    ayahNumber: 1
+                  };
+                  localStorage.setItem('lastReadAyah', JSON.stringify(lastRead));
+                  localStorage.setItem('lastReadSurah', JSON.stringify({ number: surah.number, name: surah.englishName }));
+                }}
                 className="bg-white dark:bg-slate-900 rounded-[28px] p-5 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between hover:border-emerald-200 dark:hover:border-emerald-800 transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center space-x-4">

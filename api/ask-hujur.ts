@@ -21,55 +21,85 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { messages } = req.body;
-    
-    // Priority: Groq > NVIDIA
+    const geminiKey = process.env.GEMINI_API_KEY;
     const groqKey = process.env.GROQ_API_KEY;
     const nvidiaKey = process.env.NVIDIA_API_KEY || "MWF0MmpoN285ZDgxcTAxaW9jZzl1bWo0bzQ6N2ZjZTFlOGItMDc0Zi00YjBhLTg0MGQtZjFlNWRlODA4NThm";
 
-    const tryAI = async (apiUrl: string, apiKey: string, model: string) => {
-      const body = {
-        model,
-        messages: [
-          { role: "system", content: "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible." },
-          ...messages
-        ]
-      };
+    const systemPrompt = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
 
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return await response.json();
-    };
-
-    let data;
-    try {
-      if (groqKey) {
-        console.log("Trying Groq...");
-        data = await tryAI("https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile");
-      } else {
-        throw new Error("Groq key missing");
-      }
-    } catch (groqErr) {
-      console.warn("Groq failed, trying NVIDIA fallback:", groqErr);
+    // 1. Try Gemini (REST API)
+    if (geminiKey) {
       try {
-        data = await tryAI("https://integrate.api.nvidia.com/v1/chat/completions", nvidiaKey, "qwen/qwen2.5-72b-instruct");
-      } catch (nvidiaErr: any) {
-        console.error("NVIDIA also failed:", nvidiaErr);
-        return res.status(500).json({ error: "All AI providers failed", details: nvidiaErr.message });
+        console.log("Trying Gemini REST API...");
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+        const geminiBody = {
+          contents: [
+            { role: "user", parts: [{ text: `System Instruction: ${systemPrompt}` }] },
+            ...messages.map((m: any) => ({
+              role: m.role === 'user' ? 'user' : 'model',
+              parts: [{ text: m.content }]
+            }))
+          ]
+        };
+
+        const response = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiBody)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return res.status(200).json({ choices: [{ message: { content: text } }] });
+          }
+        }
+      } catch (e) {
+        console.warn("Gemini REST failed:", e);
       }
     }
 
-    return res.status(200).json(data);
+    // 2. Try Groq
+    if (groqKey) {
+      try {
+        console.log("Trying Groq...");
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${groqKey}`
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "system", content: systemPrompt }, ...messages]
+          })
+        });
+        if (groqRes.ok) return res.status(200).json(await groqRes.json());
+      } catch (e) {
+        console.warn("Groq failed:", e);
+      }
+    }
+
+    // 3. Try NVIDIA
+    try {
+      console.log("Trying NVIDIA...");
+      const nvidiaRes = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${nvidiaKey}`
+        },
+        body: JSON.stringify({
+          model: "qwen/qwen2.5-72b-instruct",
+          messages: [{ role: "system", content: systemPrompt }, ...messages]
+        })
+      });
+      if (nvidiaRes.ok) return res.status(200).json(await nvidiaRes.json());
+      throw new Error(await nvidiaRes.text());
+    } catch (e: any) {
+      return res.status(500).json({ error: "All AI providers failed", details: e.message });
+    }
   } catch (error: any) {
     return res.status(500).json({ error: "Internal Server Error", message: error.message });
   }

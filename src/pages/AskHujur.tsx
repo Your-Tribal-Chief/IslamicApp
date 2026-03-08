@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Send, Bot, User } from 'lucide-react';
+import { ChevronLeft, Send, Bot, User, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
+const INITIAL_MESSAGE: Message = { 
+  role: 'assistant', 
+  content: 'আসসালামু আলাইকুম। আমি আপনার ডিজিটাল হুজুর। কুরআন ও হাদিসের আলোকে আপনার যেকোনো সমস্যার সমাধান বা পরামর্শের জন্য আমি এখানে আছি। আপনি কী জানতে চান?' 
+};
+
 export default function AskHujur() {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'আসসালামু আলাইকুম। আমি আপনার ডিজিটাল হুজুর। কুরআন ও হাদিসের আলোকে আপনার যেকোনো সমস্যার সমাধান বা পরামর্শের জন্য আমি এখানে আছি। আপনি কী জানতে চান?' }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem('ask_hujur_messages');
+    return saved ? JSON.parse(saved) : [INITIAL_MESSAGE];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -22,8 +27,16 @@ export default function AskHujur() {
   };
 
   useEffect(() => {
+    localStorage.setItem('ask_hujur_messages', JSON.stringify(messages));
     scrollToBottom();
   }, [messages]);
+
+  const clearHistory = () => {
+    if (window.confirm('আপনি কি নিশ্চিত যে আপনি চ্যাট হিস্ট্রি মুছে ফেলতে চান?')) {
+      setMessages([INITIAL_MESSAGE]);
+      localStorage.removeItem('ask_hujur_messages');
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -35,75 +48,28 @@ export default function AskHujur() {
     setLoading(true);
 
     try {
-      let assistantMessage = "";
-      
-      // Step 1: Try Client-side Gemini first
-      try {
-        console.log("Trying client-side Gemini...");
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        if (!apiKey) throw new Error("Client-side API key missing");
+      const response = await fetch("/api/ask-hujur", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: newMessages.slice(1) // Exclude the initial greeting for the AI context if needed, or keep it.
+        })
+      });
 
-        const ai = new GoogleGenAI({ apiKey });
-        
-        const systemInstruction = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
-        
-        const result = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [
-            ...messages.map(m => ({
-              role: m.role === 'user' ? 'user' : 'model',
-              parts: [{ text: m.content }]
-            })),
-            { role: 'user', parts: [{ text: userMessage }] }
-          ],
-          config: {
-            systemInstruction
-          }
-        });
-        assistantMessage = result.text || "";
-        if (!assistantMessage) throw new Error("Empty response from Gemini");
-      } catch (geminiErr) {
-        console.warn("Gemini failed, trying serverless fallback:", geminiErr);
-        
-        // Step 2: Fallback to Serverless Function (Groq/NVIDIA)
-        const response = await fetch("/api/ask-hujur", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            messages: [
-              ...messages.map(m => ({
-                role: m.role,
-                content: m.content
-              })),
-              { role: 'user', content: userMessage }
-            ]
-          })
-        });
-
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const data = await response.json();
-          if (response.ok) {
-            assistantMessage = data.choices[0].message.content;
-          } else {
-            console.error("Server API Error:", data);
-            throw new Error(data.error || data.message || "AI Service Error");
-          }
-        } else {
-          const text = await response.text();
-          console.error("Non-JSON response from server:", text);
-          throw new Error("Server returned non-JSON response");
-        }
+      if (!response.ok) {
+        throw new Error("AI Service Error");
       }
-      
+
+      const data = await response.json();
+      const assistantMessage = data.choices[0].message.content;
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (error: any) {
-      console.error('Final Error:', error);
+      console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না।\n\nত্রুটি: ${error.message}\n\nঅনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন এবং আবার চেষ্টা করুন।` 
+        content: `দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না। অনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন এবং আবার চেষ্টা করুন।` 
       }]);
     } finally {
       setLoading(false);
@@ -114,14 +80,23 @@ export default function AskHujur() {
     <div className="flex flex-col h-full bg-[#f5f5f0] dark:bg-[#0c0c0c] transition-colors duration-300">
       {/* Header */}
       <div className="bg-emerald-800 dark:bg-emerald-950 pt-12 pb-6 px-4 rounded-b-[40px] shadow-lg sticky top-0 z-20">
-        <div className="flex items-center mb-2">
-          <button onClick={() => navigate(-1)} className="text-white p-2 bg-white/10 rounded-xl backdrop-blur-sm -ml-1">
-            <ChevronLeft size={20} />
-          </button>
-          <div className="ml-3">
-            <h1 className="text-xl font-bold text-white">হুজুরকে জিজ্ঞাসা করুন</h1>
-            <p className="text-emerald-100 text-[10px] opacity-80 uppercase tracking-widest font-bold">Powered by Islamic AI</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <button onClick={() => navigate(-1)} className="text-white p-2 bg-white/10 rounded-xl backdrop-blur-sm -ml-1">
+              <ChevronLeft size={20} />
+            </button>
+            <div className="ml-3">
+              <h1 className="text-xl font-bold text-white">হুজুরকে জিজ্ঞাসা করুন</h1>
+              <p className="text-emerald-100 text-[10px] opacity-80 uppercase tracking-widest font-bold">Powered by Islamic AI</p>
+            </div>
           </div>
+          <button 
+            onClick={clearHistory}
+            className="text-white/60 hover:text-white p-2 transition-colors"
+            title="Clear History"
+          >
+            <Trash2 size={20} />
+          </button>
         </div>
       </div>
 

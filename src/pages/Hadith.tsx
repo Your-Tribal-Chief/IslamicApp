@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, BookText, ChevronDown, BookOpen } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, BookText, ChevronDown, BookOpen, History, ChevronRight } from 'lucide-react';
 import hadithSections from '../data/hadithSections.json';
 import { cn } from '../lib/utils';
 
@@ -20,6 +20,13 @@ interface HadithItem {
   reference: string;
 }
 
+interface LastReadHadith {
+  bookId: string;
+  bookName: string;
+  sectionId: string;
+  hadithNumber: number;
+}
+
 export default function Hadith() {
   const [selectedBook, setSelectedBook] = useState(BOOKS[0].id);
   const [sections, setSections] = useState<{ [key: string]: string }>({});
@@ -27,10 +34,42 @@ export default function Hadith() {
   const [hadiths, setHadiths] = useState<HadithItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastRead, setLastRead] = useState<LastReadHadith | null>(null);
+  const hadithRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
   const convertToBanglaNumber = (num: number | string) => {
     const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
     return num.toString().replace(/\d/g, (match) => banglaDigits[parseInt(match)]);
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('lastReadHadith');
+    if (saved) {
+      setLastRead(JSON.parse(saved));
+    }
+  }, []);
+
+  const saveLastRead = (hadithNumber: number) => {
+    const book = BOOKS.find(b => b.id === selectedBook);
+    const lastReadData: LastReadHadith = {
+      bookId: selectedBook,
+      bookName: book?.name || '',
+      sectionId: selectedSection,
+      hadithNumber
+    };
+    localStorage.setItem('lastReadHadith', JSON.stringify(lastReadData));
+    setLastRead(lastReadData);
+  };
+
+  const loadLastRead = () => {
+    if (!lastRead) return;
+    setSelectedBook(lastRead.bookId);
+    setSelectedSection(lastRead.sectionId);
+    
+    // Scroll will happen in the hadiths useEffect
+    setTimeout(() => {
+      hadithRefs.current[lastRead.hadithNumber]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 1000);
   };
 
   // Fetch sections when book changes
@@ -41,7 +80,10 @@ export default function Hadith() {
     // Find first valid section
     const validSections = Object.keys(data).filter(k => data[k] !== '');
     if (validSections.length > 0) {
-      setSelectedSection(validSections[0]);
+      // Only auto-select if not loading from last read or if current selection is invalid for this book
+      if (!selectedSection || !data[selectedSection]) {
+        setSelectedSection(validSections[0]);
+      }
     }
   }, [selectedBook]);
 
@@ -59,7 +101,6 @@ export default function Hadith() {
         const benData = await benRes.json();
         const araData = await araRes.json();
 
-        // Try to fetch English for transliteration (if available)
         let engData: any = null;
         try {
           const engRes = await fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/eng-${selectedBook}/sections/${selectedSection}.json`);
@@ -80,6 +121,13 @@ export default function Hadith() {
           };
         });
         setHadiths(merged);
+
+        // If we just loaded a section from last read, scroll to it
+        if (lastRead && lastRead.bookId === selectedBook && lastRead.sectionId === selectedSection) {
+          setTimeout(() => {
+            hadithRefs.current[lastRead.hadithNumber]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 500);
+        }
       } catch (error) {
         console.error('Error fetching hadiths', error);
       } finally {
@@ -118,6 +166,31 @@ export default function Hadith() {
           </div>
         </div>
       </div>
+
+      {/* Last Read Card */}
+      {lastRead && !searchQuery && (
+        <div className="px-4 mt-6">
+          <button 
+            onClick={loadLastRead}
+            className="w-full bg-emerald-900 dark:bg-emerald-950 rounded-[32px] p-6 shadow-xl shadow-emerald-900/20 text-white flex items-center justify-between relative overflow-hidden group border border-emerald-800 dark:border-emerald-900 text-left"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+              <History size={100} />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center space-x-2 text-emerald-300 text-[10px] font-bold uppercase tracking-widest mb-2">
+                <History size={12} />
+                <span>সর্বশেষ পঠিত হাদিস</span>
+              </div>
+              <h3 className="text-xl font-bold font-serif">{lastRead.bookName}</h3>
+              <p className="text-emerald-100/60 text-xs mt-1">হাদিস নং {convertToBanglaNumber(lastRead.hadithNumber)} থেকে পড়া চালিয়ে যান</p>
+            </div>
+            <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/5">
+              <ChevronRight size={20} />
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Book Selection (Horizontal Scroll) */}
       <div className="mt-6 px-4 overflow-x-auto no-scrollbar flex space-x-4 pb-4">
@@ -177,7 +250,15 @@ export default function Hadith() {
         ) : (
           <>
             {filteredHadiths.map((hadith) => (
-              <div key={hadith.hadithnumber} className="bg-white dark:bg-slate-900 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+              <div 
+                key={hadith.hadithnumber} 
+                ref={el => hadithRefs.current[hadith.hadithnumber] = el}
+                onClick={() => saveLastRead(hadith.hadithnumber)}
+                className={cn(
+                  "bg-white dark:bg-slate-900 rounded-[32px] p-6 shadow-sm border transition-all cursor-pointer",
+                  lastRead?.hadithNumber === hadith.hadithnumber && lastRead?.bookId === selectedBook ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-slate-100 dark:border-slate-800"
+                )}
+              >
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-50 dark:border-slate-800">
                   <span className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider">
                     হাদিস {convertToBanglaNumber(hadith.hadithnumber)}

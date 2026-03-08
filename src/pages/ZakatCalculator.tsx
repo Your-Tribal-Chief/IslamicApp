@@ -22,35 +22,28 @@ export default function ZakatCalculator() {
   const fetchCurrentPrices = async () => {
     setFetchingPrices(true);
     try {
-      // Using a public gold price API (Example: gold-api.com)
-      // Note: 1 vori = 11.66 grams. 1 ounce = 31.1035 grams.
-      // So 1 vori = 11.66 / 31.1035 ounces = ~0.3748 ounces.
+      const res = await fetch("/api/gold-price");
+      if (!res.ok) throw new Error("API failed");
       
-      const goldRes = await fetch("https://api.gold-api.com/price/XAU");
-      const silverRes = await fetch("https://api.gold-api.com/price/XAG");
-      
-      if (!goldRes.ok || !silverRes.ok) throw new Error("API failed");
-      
-      const goldData = await goldRes.json();
-      const silverData = await silverRes.json();
+      const data = await res.json();
       
       // Convert USD to BDT (Approx 120 BDT/USD) and Ounce to Vori
       const usdToBdt = 120;
       const ounceToVori = 0.3748;
       
-      if (goldData.price) {
-        const priceInBdt = goldData.price * usdToBdt * ounceToVori;
+      if (data.gold) {
+        const priceInBdt = data.gold * usdToBdt * ounceToVori;
         setGoldPricePerVori(Math.round(priceInBdt));
       }
       
-      if (silverData.price) {
-        const priceInBdt = silverData.price * usdToBdt * ounceToVori;
+      if (data.silver) {
+        const priceInBdt = data.silver * usdToBdt * ounceToVori;
         setSilverPricePerVori(Math.round(priceInBdt));
       }
       
       setIsManualPrice(false);
     } catch (err) {
-      console.error('Failed to fetch prices via REST API:', err);
+      console.error('Failed to fetch prices via internal API:', err);
       setIsManualPrice(true); // Fallback to manual input
     } finally {
       setFetchingPrices(false);

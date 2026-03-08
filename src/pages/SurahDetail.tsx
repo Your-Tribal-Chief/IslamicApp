@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, Volume2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -32,11 +32,13 @@ interface SurahData {
 export default function SurahDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [surah, setSurah] = useState<SurahData | null>(null);
   const [loading, setLoading] = useState(true);
   const [playingAyah, setPlayingAyah] = useState<number | null>(null);
   const [isAutoplay, setIsAutoplay] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ayahRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
   useEffect(() => {
     async function fetchSurah() {
@@ -49,7 +51,7 @@ export default function SurahDetail() {
         const resBn = await fetch(`https://api.alquran.cloud/v1/surah/${id}/bn.bengali`);
         const dataBn = await resBn.json();
 
-        // Fetch Transliteration (English, since Bengali transliteration API is rare, but we can try en.transliteration)
+        // Fetch Transliteration
         const resTrans = await fetch(`https://api.alquran.cloud/v1/surah/${id}/en.transliteration`);
         const dataTrans = await resTrans.json();
 
@@ -60,10 +62,32 @@ export default function SurahDetail() {
           transliteration: dataTrans.data.ayahs[index].text,
         }));
 
-        setSurah({
+        const surahData = {
           ...dataAr.data,
           ayahs: mergedAyahs
-        });
+        };
+        setSurah(surahData);
+
+        // Handle URL parameters for specific Ayah and Autoplay
+        const searchParams = new URLSearchParams(location.search);
+        const targetAyah = searchParams.get('ayah');
+        const shouldAutoplay = searchParams.get('autoplay') === 'true';
+
+        if (targetAyah) {
+          const ayahNum = parseInt(targetAyah);
+          setTimeout(() => {
+            const element = ayahRefs.current[ayahNum];
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (shouldAutoplay) {
+                const targetAyahObj = mergedAyahs.find((a: any) => a.numberInSurah === ayahNum);
+                if (targetAyahObj) {
+                  toggleAudio(targetAyahObj.number, targetAyahObj.audio, true);
+                }
+              }
+            }
+          }, 500);
+        }
       } catch (error) {
         console.error('Failed to fetch surah details:', error);
       } finally {
@@ -72,6 +96,18 @@ export default function SurahDetail() {
     }
     fetchSurah();
   }, [id]);
+
+  const saveLastRead = (ayahNumberInSurah: number) => {
+    if (!surah) return;
+    const lastRead = {
+      surahNumber: surah.number,
+      surahName: surah.englishName,
+      ayahNumber: ayahNumberInSurah
+    };
+    localStorage.setItem('lastReadAyah', JSON.stringify(lastRead));
+    // Also update the old key for backward compatibility if needed, but the new card will use 'lastReadAyah'
+    localStorage.setItem('lastReadSurah', JSON.stringify({ number: surah.number, name: surah.englishName }));
+  };
 
   const convertToBanglaNumber = (numStr: string | number) => {
     const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -91,6 +127,12 @@ export default function SurahDetail() {
       audioRef.current.play();
       setPlayingAyah(ayahNumber);
       
+      // Save last read when playing
+      const currentAyah = surah?.ayahs.find(a => a.number === ayahNumber);
+      if (currentAyah) {
+        saveLastRead(currentAyah.numberInSurah);
+      }
+      
       audioRef.current.onended = () => {
         setPlayingAyah(null);
         if (isAutoplay || autoNext) {
@@ -106,6 +148,8 @@ export default function SurahDetail() {
     if (currentIndex !== -1 && currentIndex < surah.ayahs.length - 1) {
       const nextAyah = surah.ayahs[currentIndex + 1];
       toggleAudio(nextAyah.number, nextAyah.audio, true);
+      // Scroll to next ayah
+      ayahRefs.current[nextAyah.numberInSurah]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
       setIsAutoplay(false);
     }
@@ -179,7 +223,14 @@ export default function SurahDetail() {
       {/* Ayahs List */}
       <div className="px-4 mt-4 space-y-4">
         {surah?.ayahs.map((ayah) => (
-          <div key={ayah.number} className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+          <div 
+            key={ayah.number} 
+            ref={el => ayahRefs.current[ayah.numberInSurah] = el}
+            className={cn(
+              "bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border transition-all",
+              playingAyah === ayah.number ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-slate-100 dark:border-slate-800"
+            )}
+          >
             {/* Ayah Header */}
             <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-50 dark:border-slate-800">
               <div className="flex items-center space-x-3">
