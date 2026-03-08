@@ -10,6 +10,7 @@ export default function ZakatCalculator() {
   const [silverVori, setSilverVori] = useState<number>(0);
   const [goldPricePerVori, setGoldPricePerVori] = useState<number>(120000); // Default fallback
   const [silverPricePerVori, setSilverPricePerVori] = useState<number>(2000); // Default fallback
+  const [isManualPrice, setIsManualPrice] = useState(false);
   const [investment, setInvestment] = useState<number>(0);
   const [debt, setDebt] = useState<number>(0);
   const [fetchingPrices, setFetchingPrices] = useState(false);
@@ -21,32 +22,36 @@ export default function ZakatCalculator() {
   const fetchCurrentPrices = async () => {
     setFetchingPrices(true);
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      if (!apiKey) throw new Error("API Key missing");
+      // Using a public gold price API (Example: gold-api.com)
+      // Note: 1 vori = 11.66 grams. 1 ounce = 31.1035 grams.
+      // So 1 vori = 11.66 / 31.1035 ounces = ~0.3748 ounces.
       
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: "Find the current price of 1 vori (11.66 grams) of 22K gold and 1 vori of silver in Bangladesh Taka (BDT). Return ONLY a JSON object with keys 'gold' and 'silver' as numbers.",
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              gold: { type: Type.NUMBER },
-              silver: { type: Type.NUMBER }
-            },
-            required: ["gold", "silver"]
-          }
-        }
-      });
-
-      const data = JSON.parse(response.text || '{}');
-      if (data.gold) setGoldPricePerVori(data.gold);
-      if (data.silver) setSilverPricePerVori(data.silver);
+      const goldRes = await fetch("https://api.gold-api.com/price/XAU");
+      const silverRes = await fetch("https://api.gold-api.com/price/XAG");
+      
+      if (!goldRes.ok || !silverRes.ok) throw new Error("API failed");
+      
+      const goldData = await goldRes.json();
+      const silverData = await silverRes.json();
+      
+      // Convert USD to BDT (Approx 120 BDT/USD) and Ounce to Vori
+      const usdToBdt = 120;
+      const ounceToVori = 0.3748;
+      
+      if (goldData.price) {
+        const priceInBdt = goldData.price * usdToBdt * ounceToVori;
+        setGoldPricePerVori(Math.round(priceInBdt));
+      }
+      
+      if (silverData.price) {
+        const priceInBdt = silverData.price * usdToBdt * ounceToVori;
+        setSilverPricePerVori(Math.round(priceInBdt));
+      }
+      
+      setIsManualPrice(false);
     } catch (err) {
-      console.error('Failed to fetch prices:', err);
+      console.error('Failed to fetch prices via REST API:', err);
+      setIsManualPrice(true); // Fallback to manual input
     } finally {
       setFetchingPrices(false);
     }
@@ -104,10 +109,28 @@ export default function ZakatCalculator() {
               <InputField label="স্বর্ণ (ভরি)" value={goldVori} onChange={setGoldVori} prefix="ভরি" />
               <InputField label="রূপা (ভরি)" value={silverVori} onChange={setSilverVori} prefix="ভরি" />
             </div>
-            <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400 font-medium">
-              <p>বর্তমান স্বর্ণের মূল্য: ৳ {convertToBanglaNumber(goldPricePerVori)}/ভরি</p>
-              <p>বর্তমান রূপার মূল্য: ৳ {convertToBanglaNumber(silverPricePerVori)}/ভরি</p>
-            </div>
+            
+            {isManualPrice ? (
+              <div className="space-y-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border border-orange-100 dark:border-orange-900">
+                <p className="text-[10px] text-orange-700 dark:text-orange-400 font-bold mb-2 uppercase tracking-wider">ম্যানুয়াল মূল্য ইনপুট (API ফেইল হয়েছে)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <InputField label="স্বর্ণের দাম (ভরি)" value={goldPricePerVori} onChange={setGoldPricePerVori} prefix="৳" />
+                  <InputField label="রূপার দাম (ভরি)" value={silverPricePerVori} onChange={setSilverPricePerVori} prefix="৳" />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400 font-medium">
+                <p>বর্তমান স্বর্ণের মূল্য: ৳ {convertToBanglaNumber(goldPricePerVori)}/ভরি</p>
+                <p>বর্তমান রূপার মূল্য: ৳ {convertToBanglaNumber(silverPricePerVori)}/ভরি</p>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => setIsManualPrice(!isManualPrice)}
+              className="text-[10px] text-slate-400 hover:text-emerald-600 transition-colors underline"
+            >
+              {isManualPrice ? "অটোমেটিক মূল্য ব্যবহার করুন" : "ম্যানুয়ালি মূল্য পরিবর্তন করুন"}
+            </button>
           </div>
 
           <InputField label="বিনিয়োগ ও শেয়ার" value={investment} onChange={setInvestment} prefix="৳" />

@@ -19,6 +19,7 @@ export default function HalalFinder() {
     setLoading(true);
     setError(null);
     try {
+      console.log("Trying Gemini for halal places...");
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
       if (!apiKey) throw new Error("API Key missing");
 
@@ -52,18 +53,18 @@ export default function HalalFinder() {
 
       const data = JSON.parse(response.text || '[]');
       
-      if (data && data.length > 0) {
-        const foundPlaces: Place[] = data.map((p: any) => ({
-          name: p.name,
-          address: p.address,
-          url: p.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.address)}`
-        }));
-        setPlaces(foundPlaces);
-      } else {
-        throw new Error("No halal places found with Gemini");
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("Invalid or empty data from Gemini");
       }
+
+      const foundPlaces: Place[] = data.map((p: any) => ({
+        name: p.name,
+        address: p.address,
+        url: p.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.address)}`
+      }));
+      setPlaces(foundPlaces);
     } catch (err: any) {
-      console.warn('Gemini failed, trying OpenStreetMap fallback:', err);
+      console.warn('Gemini failed or hallucinated, trying OpenStreetMap fallback:', err);
       // Fallback to OpenStreetMap (Overpass API)
       try {
         const radius = 5000; // 5km radius

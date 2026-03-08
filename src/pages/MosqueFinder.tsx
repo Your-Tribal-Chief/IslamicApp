@@ -21,6 +21,7 @@ export default function MosqueFinder() {
     setLoading(true);
     setError(null);
     try {
+      console.log("Trying Gemini for mosques...");
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
       if (!apiKey) throw new Error("API Key missing");
 
@@ -54,21 +55,21 @@ export default function MosqueFinder() {
 
       const data = JSON.parse(response.text || '[]');
       
-      if (data && data.length > 0) {
-        const foundMosques: Mosque[] = data.map((m: any) => ({
-          name: m.name,
-          address: m.address,
-          url: m.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.name + ' ' + m.address)}`
-        }));
-        setMosques(foundMosques);
-      } else {
-        throw new Error("No mosques found with Gemini");
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("Invalid or empty data from Gemini");
       }
+
+      const foundMosques: Mosque[] = data.map((m: any) => ({
+        name: m.name,
+        address: m.address,
+        url: m.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.name + ' ' + m.address)}`
+      }));
+      setMosques(foundMosques);
     } catch (err: any) {
-      console.warn('Gemini failed, trying OpenStreetMap fallback:', err);
+      console.warn('Gemini failed or hallucinated, trying OpenStreetMap fallback:', err);
       // Fallback to OpenStreetMap (Overpass API)
       try {
-        const radius = 3000; // 3km radius as requested
+        const radius = 3000; // 3km radius
         const query = `[out:json];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng});relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${lat},${lng}););out center;`;
         const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 

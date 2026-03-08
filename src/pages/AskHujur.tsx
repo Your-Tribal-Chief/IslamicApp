@@ -35,21 +35,37 @@ export default function AskHujur() {
     setLoading(true);
 
     try {
-      // Check server health first
-      let serverHealthy = false;
-      try {
-        const healthRes = await fetch("/api/health", { signal: AbortSignal.timeout(3000) });
-        if (healthRes.ok) {
-          const healthData = await healthRes.json();
-          serverHealthy = healthData.status === "ok";
-        }
-      } catch (e) {
-        console.warn("Server health check failed or timed out, will try client-side fallback if needed", e);
-      }
-
       let assistantMessage = "";
+      
+      // Step 1: Try Client-side Gemini first
+      try {
+        console.log("Trying client-side Gemini...");
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) throw new Error("Client-side API key missing");
 
-      if (serverHealthy) {
+        const ai = new GoogleGenAI({ apiKey });
+        
+        const systemInstruction = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
+        
+        const result = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            ...messages.map(m => ({
+              role: m.role === 'user' ? 'user' : 'model',
+              parts: [{ text: m.content }]
+            })),
+            { role: 'user', parts: [{ text: userMessage }] }
+          ],
+          config: {
+            systemInstruction
+          }
+        });
+        assistantMessage = result.text || "";
+        if (!assistantMessage) throw new Error("Empty response from Gemini");
+      } catch (geminiErr) {
+        console.warn("Gemini failed, trying serverless fallback:", geminiErr);
+        
+        // Step 2: Fallback to Serverless Function (Groq/NVIDIA)
         const response = await fetch("/api/ask-hujur", {
           method: "POST",
           headers: {
@@ -80,30 +96,6 @@ export default function AskHujur() {
           console.error("Non-JSON response from server:", text);
           throw new Error("Server returned non-JSON response");
         }
-      } else {
-        // Client-side fallback to Gemini
-        console.log("Using client-side Gemini fallback...");
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        if (!apiKey) throw new Error("Server unreachable and no client-side API key found.");
-
-        const ai = new GoogleGenAI({ apiKey });
-        
-        const systemInstruction = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
-        
-        const result = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [
-            ...messages.map(m => ({
-              role: m.role === 'user' ? 'user' : 'model',
-              parts: [{ text: m.content }]
-            })),
-            { role: 'user', parts: [{ text: userMessage }] }
-          ],
-          config: {
-            systemInstruction
-          }
-        });
-        assistantMessage = result.text || "দুঃখিত, আমি কোনো উত্তর খুঁজে পাইনি।";
       }
       
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);

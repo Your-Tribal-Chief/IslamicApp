@@ -26,54 +26,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const groqKey = process.env.GROQ_API_KEY;
     const nvidiaKey = process.env.NVIDIA_API_KEY || "MWF0MmpoN285ZDgxcTAxaW9jZzl1bWo0bzQ6N2ZjZTFlOGItMDc0Zi00YjBhLTg0MGQtZjFlNWRlODA4NThm";
 
-    let apiUrl = "";
-    let apiKey = "";
-    let model = "";
-    let body: any = {};
-
-    if (groqKey) {
-      apiUrl = "https://api.groq.com/openai/v1/chat/completions";
-      apiKey = groqKey;
-      model = "llama-3.3-70b-versatile";
-      body = {
+    const tryAI = async (apiUrl: string, apiKey: string, model: string) => {
+      const body = {
         model,
         messages: [
           { role: "system", content: "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible." },
           ...messages
         ]
       };
-    } else {
-      apiUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-      apiKey = nvidiaKey;
-      model = "qwen/qwen2.5-72b-instruct";
-      body = {
-        model,
-        messages: [
-          { role: "system", content: "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible." },
-          ...messages
-        ]
-      };
-    }
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ 
-        error: "AI service error", 
-        details: errorText.substring(0, 100),
-        provider: groqKey ? "Groq" : "NVIDIA"
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(body)
       });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return await response.json();
+    };
+
+    let data;
+    try {
+      if (groqKey) {
+        console.log("Trying Groq...");
+        data = await tryAI("https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile");
+      } else {
+        throw new Error("Groq key missing");
+      }
+    } catch (groqErr) {
+      console.warn("Groq failed, trying NVIDIA fallback:", groqErr);
+      try {
+        data = await tryAI("https://integrate.api.nvidia.com/v1/chat/completions", nvidiaKey, "qwen/qwen2.5-72b-instruct");
+      } catch (nvidiaErr: any) {
+        console.error("NVIDIA also failed:", nvidiaErr);
+        return res.status(500).json({ error: "All AI providers failed", details: nvidiaErr.message });
+      }
     }
 
-    const data = await response.json();
     return res.status(200).json(data);
   } catch (error: any) {
     return res.status(500).json({ error: "Internal Server Error", message: error.message });
