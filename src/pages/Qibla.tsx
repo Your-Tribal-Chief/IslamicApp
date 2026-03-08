@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Compass } from 'lucide-react';
+import { Compass, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Qibla() {
+  const navigate = useNavigate();
   const [heading, setHeading] = useState<number | null>(null);
   const [qiblaBearing, setQiblaBearing] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +104,13 @@ export default function Qibla() {
   return (
     <div className="flex flex-col min-h-full bg-[#f5f5f0] dark:bg-[#0c0c0c] pb-8 transition-colors duration-300">
       <div className="bg-emerald-800 dark:bg-emerald-950 pt-12 pb-6 px-4 rounded-b-3xl shadow-md sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-white mb-2 text-center">কিবলা নির্দেশক</h1>
-        <p className="text-emerald-100 text-sm text-center opacity-90">কাবা শরীফের দিক</p>
+        <div className="flex items-center mb-4">
+          <button onClick={() => navigate(-1)} className="text-white p-2 bg-white/10 rounded-xl backdrop-blur-sm -ml-1">
+            <ChevronLeft size={20} />
+          </button>
+          <h1 className="text-xl font-bold text-white ml-3">কিবলা নির্দেশক</h1>
+        </div>
+        <p className="text-emerald-100 text-sm opacity-90">কাবা শরীফের দিক</p>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">

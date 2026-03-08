@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { RotateCcw, ChevronDown, Plus } from 'lucide-react';
+import { RotateCcw, ChevronDown, Plus, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 const TASBIH_OPTIONS = [
@@ -11,6 +12,7 @@ const TASBIH_OPTIONS = [
 ];
 
 export default function Tasbih() {
+  const navigate = useNavigate();
   const [selectedTasbih, setSelectedTasbih] = useState(TASBIH_OPTIONS[0]);
   const [count, setCount] = useState(0);
   const [showOptions, setShowOptions] = useState(false);
@@ -45,8 +47,13 @@ export default function Tasbih() {
         <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
           <Plus size={200} className="-mt-20 -mr-20" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2 text-center relative z-10">ডিজিটাল তাসবিহ</h1>
-        <p className="text-emerald-100 text-sm text-center opacity-80 relative z-10">জিকির ও দোয়া</p>
+        <div className="flex items-center mb-4 relative z-10">
+          <button onClick={() => navigate(-1)} className="text-white p-2 bg-white/10 rounded-xl backdrop-blur-sm -ml-1">
+            <ChevronLeft size={20} />
+          </button>
+          <h1 className="text-xl font-bold text-white ml-3">ডিজিটাল তাসবিহ</h1>
+        </div>
+        <p className="text-emerald-100 text-sm opacity-80 relative z-10">জিকির ও দোয়া</p>
       </div>
 
       <div className="flex-1 flex flex-col items-center p-6 -mt-8 relative z-20">

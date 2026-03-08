@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, BookOpen, History, ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, BookOpen, History, ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface Surah {
   number: number;
@@ -18,6 +18,7 @@ interface LastRead {
 }
 
 export default function Quran() {
+  const navigate = useNavigate();
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,7 +73,12 @@ export default function Quran() {
           <BookOpen size={150} className="-mt-10 -mr-10 transform rotate-12" />
         </div>
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold font-serif mb-2">আল কুরআন</h1>
+          <div className="flex items-center mb-4">
+            <button onClick={() => navigate(-1)} className="text-white p-2 bg-white/10 rounded-xl backdrop-blur-sm -ml-1">
+              <ChevronLeft size={20} />
+            </button>
+            <h1 className="text-xl font-bold text-white ml-3 font-serif">আল কুরআন</h1>
+          </div>
           <p className="text-emerald-100 text-sm opacity-80">পবিত্র কুরআনুল কারীম</p>
           
           <div className="mt-6 relative">

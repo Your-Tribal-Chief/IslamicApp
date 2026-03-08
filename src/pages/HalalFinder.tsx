@@ -69,7 +69,7 @@ export default function HalalFinder() {
       try {
         const radius = 5000; // 5km radius
         const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
-        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+        const url = `/api/osm?data=${encodeURIComponent(query)}`;
 
         const response = await fetch(url);
         if (!response.ok) throw new Error("OSM Fallback failed");

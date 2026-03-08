@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, BookText, ChevronDown, BookOpen, History, ChevronRight } from 'lucide-react';
+import { Search, BookText, ChevronDown, BookOpen, History, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import hadithSections from '../data/hadithSections.json';
 import { cn } from '../lib/utils';
 
@@ -28,6 +29,7 @@ interface LastReadHadith {
 }
 
 export default function Hadith() {
+  const navigate = useNavigate();
   const [selectedBook, setSelectedBook] = useState(BOOKS[0].id);
   const [sections, setSections] = useState<{ [key: string]: string }>({});
   const [selectedSection, setSelectedSection] = useState<string>('');
@@ -93,25 +95,25 @@ export default function Hadith() {
     async function fetchHadiths() {
       setLoading(true);
       try {
-        const [benRes, araRes] = await Promise.all([
+        const [benRes, araRes, engRes] = await Promise.all([
           fetch(`/api/hadith/editions/ben-${selectedBook}/sections/${selectedSection}.json`),
-          fetch(`/api/hadith/editions/ara-${selectedBook}/sections/${selectedSection}.json`)
+          fetch(`/api/hadith/editions/ara-${selectedBook}/sections/${selectedSection}.json`),
+          fetch(`/api/hadith/editions/eng-${selectedBook}/sections/${selectedSection}.json`)
         ]);
         
-        const benData = await benRes.json();
-        const araData = await araRes.json();
+        const [benData, araData, engData] = await Promise.all([
+          benRes.json(),
+          araRes.json(),
+          engRes.ok ? engRes.json() : Promise.resolve(null)
+        ]);
 
-        let engData: any = null;
-        try {
-          const engRes = await fetch(`/api/hadith/editions/eng-${selectedBook}/sections/${selectedSection}.json`);
-          if (engRes.ok) engData = await engRes.json();
-        } catch (e) {
-          console.warn('English edition not found');
+        if (!benData.hadiths || !araData.hadiths) {
+          throw new Error("Invalid hadith data received");
         }
 
         const merged: HadithItem[] = benData.hadiths.map((b: any) => {
           const a = araData.hadiths.find((x: any) => x.hadithnumber === b.hadithnumber);
-          const e = engData?.hadiths.find((x: any) => x.hadithnumber === b.hadithnumber);
+          const e = engData?.hadiths?.find((x: any) => x.hadithnumber === b.hadithnumber);
           return {
             hadithnumber: b.hadithnumber,
             arabicText: a ? a.text : '',
@@ -149,7 +151,12 @@ export default function Hadith() {
           <BookText size={150} className="-mt-10 -mr-10 transform rotate-12" />
         </div>
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold font-serif mb-2">হাদিস শরীফ</h1>
+          <div className="flex items-center mb-4">
+            <button onClick={() => navigate(-1)} className="text-white p-2 bg-white/10 rounded-xl backdrop-blur-sm -ml-1">
+              <ChevronLeft size={20} />
+            </button>
+            <h1 className="text-xl font-bold text-white ml-3 font-serif">হাদিস শরীফ</h1>
+          </div>
           <p className="text-emerald-100 text-sm opacity-80">নির্বাচিত সহীহ হাদিস সংকলন</p>
           
           <div className="mt-6 relative">

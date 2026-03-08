@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Volume2 } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Volume2, ChevronLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface Ayah {
@@ -43,23 +43,29 @@ export default function SurahDetail() {
   useEffect(() => {
     async function fetchSurah() {
       try {
-        // Fetch Arabic with Audio
-        const resAr = await fetch(`/api/quran/surah/${id}/ar.alafasy`);
-        const dataAr = await resAr.json();
-        
-        // Fetch Bengali Translation
-        const resBn = await fetch(`/api/quran/surah/${id}/bn.bengali`);
-        const dataBn = await resBn.json();
+        setLoading(true);
+        // Fetch Arabic, Bengali, and Transliteration in parallel
+        const [resAr, resBn, resTrans] = await Promise.all([
+          fetch(`/api/quran/surah/${id}/ar.alafasy`),
+          fetch(`/api/quran/surah/${id}/bn.bengali`),
+          fetch(`/api/quran/surah/${id}/en.transliteration`)
+        ]);
 
-        // Fetch Transliteration
-        const resTrans = await fetch(`/api/quran/surah/${id}/en.transliteration`);
-        const dataTrans = await resTrans.json();
+        const [dataAr, dataBn, dataTrans] = await Promise.all([
+          resAr.json(),
+          resBn.json(),
+          resTrans.json()
+        ]);
+        
+        if (!dataAr.data || !dataBn.data || !dataTrans.data) {
+          throw new Error("Invalid data received from API");
+        }
 
         // Merge data
         const mergedAyahs = dataAr.data.ayahs.map((ayah: any, index: number) => ({
           ...ayah,
-          translation: dataBn.data.ayahs[index].text,
-          transliteration: dataTrans.data.ayahs[index].text,
+          translation: dataBn.data.ayahs[index]?.text || '',
+          transliteration: dataTrans.data.ayahs[index]?.text || '',
         }));
 
         const surahData = {
@@ -181,7 +187,7 @@ export default function SurahDetail() {
       <div className="flex flex-col h-full bg-[#f5f5f0] dark:bg-[#0c0c0c] transition-colors">
         <div className="bg-emerald-800 dark:bg-emerald-950 text-white p-4 flex items-center shadow-md">
           <button onClick={() => navigate(-1)} className="p-2 mr-2 hover:bg-white/10 rounded-full transition-colors">
-            <ArrowLeft size={24} />
+            <ChevronLeft size={24} />
           </button>
           <div className="h-6 w-32 bg-white/20 rounded animate-pulse"></div>
         </div>
@@ -197,7 +203,7 @@ export default function SurahDetail() {
       {/* Header */}
       <div className="sticky top-0 z-50 bg-emerald-800 dark:bg-emerald-950 text-white p-4 flex items-center shadow-md">
         <button onClick={() => navigate(-1)} className="p-2 mr-2 hover:bg-white/10 rounded-full transition-colors active:scale-95">
-          <ArrowLeft size={24} />
+          <ChevronLeft size={24} />
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold font-serif">{surah?.englishName}</h1>

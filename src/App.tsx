@@ -25,7 +25,7 @@ function AppContent() {
 
   return (
     <div className={`flex flex-col h-screen ${theme === 'dark' ? 'dark bg-[#0c0c0c]' : 'bg-[#f5f5f0]'} font-sans text-slate-900 dark:text-slate-100 max-w-md mx-auto shadow-2xl relative overflow-hidden transition-colors duration-300`}>
-      <div className="flex-1 overflow-y-auto pb-16">
+      <div className="flex-1 overflow-y-auto">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/quran" element={<Quran />} />
@@ -46,7 +46,7 @@ function AppContent() {
       </div>
 
       {!isSurahDetail && (
-        <nav className="absolute bottom-0 w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-around items-center h-16 px-2 pb-safe z-50 transition-colors">
+        <nav className="shrink-0 w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-around items-center h-16 px-2 pb-safe z-50 transition-colors">
           <NavItem to="/" icon={<Home size={22} />} label="হোম" active={location.pathname === '/'} />
           <NavItem to="/quran" icon={<BookOpen size={22} />} label="কুরআন" active={location.pathname === '/quran'} />
           <NavItem to="/hadith" icon={<BookText size={22} />} label="হাদিস" active={location.pathname === '/hadith'} />

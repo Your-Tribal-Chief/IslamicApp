@@ -6,6 +6,24 @@ import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Simple in-memory cache
+const cache = new Map<string, { data: any, expiry: number }>();
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
+
+async function fetchWithCache(url: string, cacheKey: string, duration = CACHE_DURATION) {
+  const cached = cache.get(cacheKey);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  const data = await response.json();
+  
+  cache.set(cacheKey, { data, expiry: Date.now() + duration });
+  return data;
+}
+
 async function startServer() {
   const app = express();
   const port = 3000;
@@ -17,8 +35,7 @@ async function startServer() {
     const path = req.params[0];
     const url = `https://api.alquran.cloud/v1/${path}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`;
     try {
-      const response = await fetch(url);
-      const data = await response.json();
+      const data = await fetchWithCache(url, `quran-${req.url}`);
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: 'Quran API Proxy Error', message: err.message });
@@ -30,12 +47,37 @@ async function startServer() {
     const path = req.params[0];
     const url = `https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/${path}`;
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data = await fetchWithCache(url, `hadith-${req.url}`);
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: 'Hadith API Proxy Error', message: err.message });
+    }
+  });
+
+  // Proxy for Aladhan API
+  app.get('/api/aladhan/*', async (req, res) => {
+    const path = req.params[0];
+    const url = `https://api.aladhan.com/v1/${path}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`;
+    try {
+      const data = await fetchWithCache(url, `aladhan-${req.url}`);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Aladhan API Proxy Error', message: err.message });
+    }
+  });
+
+  // Proxy for OSM (Overpass) API
+  app.get('/api/osm', async (req, res) => {
+    const dataQuery = req.query.data as string;
+    if (!dataQuery) return res.status(400).json({ error: 'Missing data query' });
+    
+    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(dataQuery)}`;
+    try {
+      // OSM data might change, but 10 mins cache is fine for mosques/restaurants
+      const data = await fetchWithCache(url, `osm-${dataQuery}`, 1000 * 60 * 10);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: 'OSM API Proxy Error', message: err.message });
     }
   });
 

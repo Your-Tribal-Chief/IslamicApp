@@ -176,33 +176,39 @@ export default function Dashboard() {
     async function fetchData() {
       try {
         // Try to get location
-        let url = 'https://api.aladhan.com/v1/timingsByCity?city=Dhaka&country=Bangladesh&method=1';
+        let url = '/api/aladhan/timingsByCity?city=Dhaka&country=Bangladesh&method=1';
         
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(async (pos) => {
             const { latitude, longitude } = pos.coords;
-            const res = await fetch(`https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=1`);
+            const res = await fetch(`/api/aladhan/timings?latitude=${latitude}&longitude=${longitude}&method=1`);
             const data = await res.json();
-            const timings = data.data.timings;
-            setPrayerTimes(timings);
-            setHijriDate(data.data.date.hijri);
-            updatePrayerStatus(timings);
+            
+            if (data && data.data && data.data.timings) {
+              const timings = data.data.timings;
+              setPrayerTimes(timings);
+              setHijriDate(data.data.date.hijri);
+            } else {
+              throw new Error(data.message || 'Invalid prayer times data');
+            }
           }, async () => {
             // Fallback to Dhaka
             const res = await fetch(url);
             const data = await res.json();
-            const timings = data.data.timings;
-            setPrayerTimes(timings);
-            setHijriDate(data.data.date.hijri);
-            updatePrayerStatus(timings);
+            if (data && data.data && data.data.timings) {
+              const timings = data.data.timings;
+              setPrayerTimes(timings);
+              setHijriDate(data.data.date.hijri);
+            }
           });
         } else {
           const res = await fetch(url);
           const data = await res.json();
-          const timings = data.data.timings;
-          setPrayerTimes(timings);
-          setHijriDate(data.data.date.hijri);
-          updatePrayerStatus(timings);
+          if (data && data.data && data.data.timings) {
+            const timings = data.data.timings;
+            setPrayerTimes(timings);
+            setHijriDate(data.data.date.hijri);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch prayer times:', error);
@@ -211,12 +217,16 @@ export default function Dashboard() {
       }
     }
     fetchData();
+  }, []); // Only fetch once on mount
 
-    const interval = setInterval(() => {
-      if (prayerTimes) updatePrayerStatus(prayerTimes);
-    }, 60000);
-
-    return () => clearInterval(interval);
+  useEffect(() => {
+    if (prayerTimes) {
+      updatePrayerStatus(prayerTimes);
+      const interval = setInterval(() => {
+        updatePrayerStatus(prayerTimes);
+      }, 60000);
+      return () => clearInterval(interval);
+    }
   }, [prayerTimes, updatePrayerStatus]);
 
   const convertToBanglaNumber = (numStr: string) => {
