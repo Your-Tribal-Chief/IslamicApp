@@ -44,15 +44,15 @@ export default function SurahDetail() {
     async function fetchSurah() {
       try {
         // Fetch Arabic with Audio
-        const resAr = await fetch(`https://api.alquran.cloud/v1/surah/${id}/ar.alafasy`);
+        const resAr = await fetch(`/api/quran/surah/${id}/ar.alafasy`);
         const dataAr = await resAr.json();
         
         // Fetch Bengali Translation
-        const resBn = await fetch(`https://api.alquran.cloud/v1/surah/${id}/bn.bengali`);
+        const resBn = await fetch(`/api/quran/surah/${id}/bn.bengali`);
         const dataBn = await resBn.json();
 
         // Fetch Transliteration
-        const resTrans = await fetch(`https://api.alquran.cloud/v1/surah/${id}/en.transliteration`);
+        const resTrans = await fetch(`/api/quran/surah/${id}/en.transliteration`);
         const dataTrans = await resTrans.json();
 
         // Merge data
@@ -124,7 +124,13 @@ export default function SurahDetail() {
         audioRef.current.pause();
       }
       audioRef.current = new Audio(audioUrl);
-      audioRef.current.play();
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Audio play interrupted:", error);
+        });
+      }
       setPlayingAyah(ayahNumber);
       
       // Save last read when playing

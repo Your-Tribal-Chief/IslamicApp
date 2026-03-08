@@ -94,8 +94,8 @@ export default function Hadith() {
       setLoading(true);
       try {
         const [benRes, araRes] = await Promise.all([
-          fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/ben-${selectedBook}/sections/${selectedSection}.json`),
-          fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/ara-${selectedBook}/sections/${selectedSection}.json`)
+          fetch(`/api/hadith/editions/ben-${selectedBook}/sections/${selectedSection}.json`),
+          fetch(`/api/hadith/editions/ara-${selectedBook}/sections/${selectedSection}.json`)
         ]);
         
         const benData = await benRes.json();
@@ -103,7 +103,7 @@ export default function Hadith() {
 
         let engData: any = null;
         try {
-          const engRes = await fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/eng-${selectedBook}/sections/${selectedSection}.json`);
+          const engRes = await fetch(`/api/hadith/editions/eng-${selectedBook}/sections/${selectedSection}.json`);
           if (engRes.ok) engData = await engRes.json();
         } catch (e) {
           console.warn('English edition not found');

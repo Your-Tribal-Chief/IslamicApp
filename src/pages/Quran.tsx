@@ -26,7 +26,7 @@ export default function Quran() {
   useEffect(() => {
     async function fetchSurahs() {
       try {
-        const res = await fetch('https://api.alquran.cloud/v1/surah');
+        const res = await fetch('/api/quran/surah');
         const data = await res.json();
         setSurahs(data.data);
       } catch (error) {
