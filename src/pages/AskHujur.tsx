@@ -38,13 +38,13 @@ export default function AskHujur() {
       // Check server health first
       let serverHealthy = false;
       try {
-        const healthRes = await fetch("/api/health");
+        const healthRes = await fetch("/api/health", { signal: AbortSignal.timeout(3000) });
         if (healthRes.ok) {
           const healthData = await healthRes.json();
           serverHealthy = healthData.status === "ok";
         }
       } catch (e) {
-        console.warn("Server health check failed, will try client-side fallback if needed", e);
+        console.warn("Server health check failed or timed out, will try client-side fallback if needed", e);
       }
 
       let assistantMessage = "";
@@ -128,7 +128,7 @@ export default function AskHujur() {
           </button>
           <div className="ml-3">
             <h1 className="text-xl font-bold text-white">হুজুরকে জিজ্ঞাসা করুন</h1>
-            <p className="text-emerald-100 text-[10px] opacity-80 uppercase tracking-widest font-bold">Powered by Qwen 2.5 AI</p>
+            <p className="text-emerald-100 text-[10px] opacity-80 uppercase tracking-widest font-bold">Powered by Islamic AI</p>
           </div>
         </div>
       </div>
