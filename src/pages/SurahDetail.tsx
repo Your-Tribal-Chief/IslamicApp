@@ -46,9 +46,9 @@ export default function SurahDetail() {
         setLoading(true);
         // Fetch Arabic, Bengali, and Transliteration in parallel
         const [resAr, resBn, resTrans] = await Promise.all([
-          fetch(`/api/quran/surah/${id}/ar.alafasy`),
-          fetch(`/api/quran/surah/${id}/bn.bengali`),
-          fetch(`/api/quran/surah/${id}/en.transliteration`)
+          fetch(`https://api.alquran.cloud/v1/surah/${id}/ar.alafasy`),
+          fetch(`https://api.alquran.cloud/v1/surah/${id}/bn.bengali`),
+          fetch(`https://api.alquran.cloud/v1/surah/${id}/en.transliteration`)
         ]);
 
         const [dataAr, dataBn, dataTrans] = await Promise.all([

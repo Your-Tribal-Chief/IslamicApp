@@ -96,9 +96,9 @@ export default function Hadith() {
       setLoading(true);
       try {
         const [benRes, araRes, engRes] = await Promise.all([
-          fetch(`/api/hadith/editions/ben-${selectedBook}/sections/${selectedSection}.json`),
-          fetch(`/api/hadith/editions/ara-${selectedBook}/sections/${selectedSection}.json`),
-          fetch(`/api/hadith/editions/eng-${selectedBook}/sections/${selectedSection}.json`)
+          fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/ben-${selectedBook}/sections/${selectedSection}.json`),
+          fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/ara-${selectedBook}/sections/${selectedSection}.json`),
+          fetch(`https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/eng-${selectedBook}/sections/${selectedSection}.json`)
         ]);
         
         const [benData, araData, engData] = await Promise.all([

@@ -19,12 +19,12 @@ export default defineConfig(({mode}) => {
           theme_color: '#065f46',
           icons: [
             {
-              src: 'https://storage.googleapis.com/static.antigravity.dev/67cc9937849e7570951139f4/67cc9937849e7570951139f4_0.png',
+              src: '/icon-192x192.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'https://storage.googleapis.com/static.antigravity.dev/67cc9937849e7570951139f4/67cc9937849e7570951139f4_0.png',
+              src: '/icon-512x512.png',
               sizes: '512x512',
               type: 'image/png'
             }
