@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MapPin, Navigation, ExternalLink, RefreshCw, Utensils } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI, Type } from "@google/genai";
 
 interface Place {
   name: string;
@@ -19,89 +18,40 @@ export default function HalalFinder() {
     setLoading(true);
     setError(null);
     try {
-      console.log("Trying Gemini for halal places...");
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      if (!apiKey) throw new Error("API Key missing");
-
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Find 5-7 halal restaurants or food places within a 5km radius of my current location (Latitude: ${lat}, Longitude: ${lng}). 
-        For each place, provide:
-        1. The name of the restaurant.
-        2. The specific address or location description.
-        3. A Google Maps link if possible.
-        
-        Return the data in a structured JSON format.`,
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                address: { type: Type.STRING },
-                url: { type: Type.STRING }
-              },
-              required: ["name", "address"]
-            }
-          }
-        },
-      });
-
-      const data = JSON.parse(response.text || '[]');
+      const radius = 5000; // 5km radius
+      const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
       
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error("Invalid or empty data from Gemini");
-      }
+      const response = await fetch(`/api/osm?data=${encodeURIComponent(query)}`);
 
-      const foundPlaces: Place[] = data.map((p: any) => ({
-        name: p.name,
-        address: p.address,
-        url: p.url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.address)}`
-      }));
-      setPlaces(foundPlaces);
+      if (!response.ok) throw new Error("OSM API failed");
+      
+      const data = await response.json();
+      
+      if (data.elements && data.elements.length > 0) {
+        const foundPlaces: Place[] = data.elements
+          .filter((el: any) => {
+            const name = (el.tags.name || '').toLowerCase();
+            const cuisine = (el.tags.cuisine || '').toLowerCase();
+            const diet = (el.tags['diet:halal'] || '').toLowerCase();
+            const halalTag = (el.tags.halal || '').toLowerCase();
+            return name.includes('halal') || cuisine.includes('halal') || diet === 'yes' || halalTag === 'yes';
+          })
+          .map((el: any) => {
+            const latVal = el.lat || el.center?.lat;
+            const lonVal = el.lon || el.center?.lon;
+            return {
+              name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'রেস্টুরেন্ট',
+              address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
+              url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
+            };
+          });
+        setPlaces(foundPlaces);
+      } else {
+        setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি।");
+      }
     } catch (err: any) {
-      console.warn('Gemini failed or hallucinated, trying OpenStreetMap fallback:', err);
-      // Fallback to OpenStreetMap (Overpass API)
-      try {
-        const radius = 5000; // 5km radius
-        const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
-        const url = `/api/osm?data=${encodeURIComponent(query)}`;
-
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("OSM Fallback failed");
-        
-        const data = await response.json();
-        
-        if (data.elements && data.elements.length > 0) {
-          const foundPlaces: Place[] = data.elements
-            .filter((el: any) => {
-              const name = (el.tags.name || '').toLowerCase();
-              const cuisine = (el.tags.cuisine || '').toLowerCase();
-              const diet = (el.tags['diet:halal'] || '').toLowerCase();
-              const halalTag = (el.tags.halal || '').toLowerCase();
-              return name.includes('halal') || cuisine.includes('halal') || diet === 'yes' || halalTag === 'yes';
-            })
-            .map((el: any) => {
-              const latVal = el.lat || el.center?.lat;
-              const lonVal = el.lon || el.center?.lon;
-              return {
-                name: el.tags.name || el.tags['name:en'] || el.tags['name:bn'] || 'রেস্টুরেন্ট',
-                address: el.tags['addr:full'] || el.tags['addr:street'] || el.tags['addr:place'] || 'ঠিকানা ম্যাপে দেখুন',
-                url: `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`
-              };
-            });
-          setPlaces(foundPlaces);
-        } else {
-          setError("কাছাকাছি কোনো হালাল রেস্টুরেন্ট পাওয়া যায়নি।");
-        }
-      } catch (osmErr) {
-        console.error('All search methods failed:', osmErr);
-        setError("হালাল রেস্টুরেন্ট খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন।");
-      }
+      console.error('Search failed:', err);
+      setError("হালাল রেস্টুরেন্ট খুঁজতে সমস্যা হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন।");
     } finally {
       setLoading(false);
     }

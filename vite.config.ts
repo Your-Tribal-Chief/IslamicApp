@@ -31,36 +31,7 @@ export default defineConfig(({mode}) => {
           ]
         },
         workbox: {
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/api\.alquran\.cloud\/v1\/.*/i,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'quran-api-cache',
-                expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            },
-            {
-              urlPattern: /^https:\/\/raw\.githubusercontent\.com\/fawazahmed0\/hadith-api\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'hadith-api-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            }
-          ]
+          // Only cache local static assets, do not cache external API requests
         }
       })
     ],

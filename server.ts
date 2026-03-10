@@ -16,12 +16,35 @@ async function fetchWithCache(url: string, cacheKey: string, duration = CACHE_DU
     return cached.data;
   }
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-  const data = await response.json();
-  
-  cache.set(cacheKey, { data, expiry: Date.now() + duration });
-  return data;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, body: ${text.substring(0, 100)}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      cache.set(cacheKey, { data, expiry: Date.now() + duration });
+      return data;
+    } else {
+      const text = await response.text();
+      // If it's not JSON but we expected it to be (like for OSM), throw
+      if (url.includes('interpreter')) {
+        throw new Error(`Expected JSON from Overpass but got ${contentType}`);
+      }
+      return text;
+    }
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
 }
 
 async function startServer() {
@@ -71,13 +94,22 @@ async function startServer() {
     const dataQuery = req.query.data as string;
     if (!dataQuery) return res.status(400).json({ error: 'Missing data query' });
     
-    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(dataQuery)}`;
+    const primaryUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(dataQuery)}`;
+    const fallbackUrl = `https://overpass.kumi.systems/api/interpreter?data=${encodeURIComponent(dataQuery)}`;
+    
     try {
-      // OSM data might change, but 10 mins cache is fine for mosques/restaurants
-      const data = await fetchWithCache(url, `osm-${dataQuery}`, 1000 * 60 * 10);
+      // Try primary first
+      const data = await fetchWithCache(primaryUrl, `osm-${dataQuery}`, 1000 * 60 * 10);
       res.json(data);
     } catch (err: any) {
-      res.status(500).json({ error: 'OSM API Proxy Error', message: err.message });
+      console.warn('Primary OSM API failed, trying fallback...', err.message);
+      try {
+        // Try fallback
+        const data = await fetchWithCache(fallbackUrl, `osm-fallback-${dataQuery}`, 1000 * 60 * 10);
+        res.json(data);
+      } catch (fallbackErr: any) {
+        res.status(500).json({ error: 'OSM API Proxy Error', message: fallbackErr.message });
+      }
     }
   });
 
