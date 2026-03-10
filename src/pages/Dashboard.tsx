@@ -175,13 +175,13 @@ export default function Dashboard() {
 
     async function fetchData() {
       try {
-        // Try to get location
-        let url = '/api/aladhan/timingsByCity?city=Dhaka&country=Bangladesh&method=1';
+        // Use absolute URLs for Aladhan API
+        let url = 'https://api.aladhan.com/v1/timingsByCity?city=Dhaka&country=Bangladesh&method=1';
         
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(async (pos) => {
             const { latitude, longitude } = pos.coords;
-            const res = await fetch(`/api/aladhan/timings?latitude=${latitude}&longitude=${longitude}&method=1`);
+            const res = await fetch(`https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=1`);
             const data = await res.json();
             
             if (data && data.data && data.data.timings) {
@@ -242,6 +242,56 @@ export default function Dashboard() {
     h = h % 12 || 12;
     return convertToBanglaNumber(`${h}:${minutes} ${ampm}`);
   };
+
+  const [fastingCountdown, setFastingCountdown] = useState<{ label: string; time: string } | null>(null);
+
+  useEffect(() => {
+    if (!prayerTimes) return;
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      const convertToBanglaNumber = (num: number) => {
+        const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        return String(num).replace(/\d/g, (match) => banglaDigits[parseInt(match)]);
+      };
+
+      const parseTime = (timeStr: string, isTomorrow = false) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        if (isTomorrow) d.setDate(d.getDate() + 1);
+        return d;
+      };
+
+      const imsak = parseTime(prayerTimes.Imsak);
+      const maghrib = parseTime(prayerTimes.Maghrib);
+      const tomorrowImsak = parseTime(prayerTimes.Imsak, true);
+
+      let target: Date;
+      let label: string;
+
+      if (now < imsak) {
+        target = imsak;
+        label = 'সেহরি শেষ হতে বাকি';
+      } else if (now < maghrib) {
+        target = maghrib;
+        label = 'ইফতার শুরু হতে বাকি';
+      } else {
+        target = tomorrowImsak;
+        label = 'আগামীকাল সেহরি শেষ হতে';
+      }
+
+      const diff = target.getTime() - now.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const timeStr = `${hours > 0 ? convertToBanglaNumber(hours) + ' ঘণ্টা ' : ''}${convertToBanglaNumber(mins)} মিনিট ${convertToBanglaNumber(secs)} সেকেন্ড`;
+      setFastingCountdown({ label, time: timeStr });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [prayerTimes]);
 
   if (loading) {
     return (
@@ -342,23 +392,31 @@ export default function Dashboard() {
       </div>
 
       {/* Sehri & Iftar Cards */}
-      <div className="px-4 mt-6 grid grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center space-x-3 transition-colors">
-          <div className="bg-indigo-50 dark:bg-indigo-950 p-3 rounded-2xl text-indigo-500">
-            <Moon size={20} />
+      <div className="px-4 mt-6 space-y-4">
+        {fastingCountdown && (
+          <div className="bg-emerald-600 dark:bg-emerald-800 rounded-3xl p-4 text-white shadow-lg shadow-emerald-900/20 flex flex-col items-center justify-center text-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">{fastingCountdown.label}</p>
+            <p className="text-xl font-bold tracking-tight">{fastingCountdown.time}</p>
           </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">সেহরি শেষ</p>
-            <p className="text-base font-bold text-slate-800 dark:text-slate-200">{formatTime(prayerTimes?.Imsak || '')}</p>
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center space-x-3 transition-colors">
+            <div className="bg-indigo-50 dark:bg-indigo-950 p-3 rounded-2xl text-indigo-500">
+              <Moon size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">সেহরি শেষ</p>
+              <p className="text-base font-bold text-slate-800 dark:text-slate-200">{formatTime(prayerTimes?.Imsak || '')}</p>
+            </div>
           </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center space-x-3 transition-colors">
-          <div className="bg-orange-50 dark:bg-orange-950 p-3 rounded-2xl text-orange-500">
-            <Sun size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ইফতার শুরু</p>
-            <p className="text-base font-bold text-slate-800 dark:text-slate-200">{formatTime(prayerTimes?.Maghrib || '')}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center space-x-3 transition-colors">
+            <div className="bg-orange-50 dark:bg-orange-950 p-3 rounded-2xl text-orange-500">
+              <Sun size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ইফতার শুরু</p>
+              <p className="text-base font-bold text-slate-800 dark:text-slate-200">{formatTime(prayerTimes?.Maghrib || '')}</p>
+            </div>
           </div>
         </div>
       </div>

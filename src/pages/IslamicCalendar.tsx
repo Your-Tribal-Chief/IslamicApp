@@ -18,7 +18,7 @@ export default function IslamicCalendar() {
   useEffect(() => {
     async function fetchHijri() {
       try {
-        const res = await fetch(`/api/aladhan/gToH/${format(currentDate, 'dd-MM-yyyy')}`);
+        const res = await fetch(`https://api.aladhan.com/v1/gToH/${format(currentDate, 'dd-MM-yyyy')}`);
         const data = await res.json();
         if (data && data.data && data.data.hijri) {
           setHijriDate(data.data.hijri);

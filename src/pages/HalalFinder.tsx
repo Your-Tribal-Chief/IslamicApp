@@ -21,7 +21,13 @@ export default function HalalFinder() {
       const radius = 5000; // 5km radius
       const query = `[out:json];(node["amenity"="restaurant"](around:${radius},${lat},${lng});way["amenity"="restaurant"](around:${radius},${lat},${lng});relation["amenity"="restaurant"](around:${radius},${lat},${lng});node["cuisine"="halal"](around:${radius},${lat},${lng});way["cuisine"="halal"](around:${radius},${lat},${lng}););out center;`;
       
-      const response = await fetch(`/api/osm?data=${encodeURIComponent(query)}`);
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: `data=${encodeURIComponent(query)}`,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
 
       if (!response.ok) throw new Error("OSM API failed");
       
