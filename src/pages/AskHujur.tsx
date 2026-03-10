@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Send, Bot, User, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -49,22 +48,22 @@ export default function AskHujur() {
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const model = "gemini-3-flash-preview";
-      const systemPrompt = "You are a wise and compassionate Islamic scholar (Mawlana/Hujur). Your goal is to provide halal advice and solutions based on the Quran and Hadith. Always answer in Bengali. Be respectful, empathetic, and provide references where possible.";
-
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [
-          { role: "user", parts: [{ text: `System Instruction: ${systemPrompt}` }] },
-          ...newMessages.map((m) => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
-          }))
-        ]
+      const response = await fetch("/api/ask-hujur", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: newMessages.slice(1) // Exclude the initial greeting from the AI context
+        })
       });
 
-      const assistantMessage = response.text || "দুঃখিত, আমি কোনো উত্তর খুঁজে পাইনি।";
+      if (!response.ok) {
+        throw new Error("AI Service Error");
+      }
+
+      const data = await response.json();
+      const assistantMessage = data.choices[0].message.content || "দুঃখিত, আমি কোনো উত্তর খুঁজে পাইনি।";
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (error: any) {
       console.error('Error:', error);
